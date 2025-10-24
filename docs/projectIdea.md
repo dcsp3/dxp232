@@ -4,6 +4,7 @@
 
 I want to build a small REST API system that proves itself correct using **dependent types**. Build a simple demo app: the goal is to show that the client and server literally cannot go out of sync (if they do, it just won’t compile)
 
+---
 
 ### **The Problem**
 
@@ -22,6 +23,8 @@ Some “fixes” exist:
 But they guarantee runtime-safety, not compile-time safety.
 
 >Using a dependently typed approach, API specs can be encoded directly in the type system to ensure **compile-time proof** that the data structure aligns with its semantic content (e.g., status code, discriminant value)  
+
+---
 
 ### **Motivation**
 
