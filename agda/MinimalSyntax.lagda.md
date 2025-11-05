@@ -27,28 +27,32 @@ data Status : Set where
 ```
 
 ## 3. Payload Schemas
-The "shape" of data exchanged in requests/responses. These are synctactic, not Agda types, enabling reasoning about structure.
->This is where dependent reasoning about data shapes begins.
+The "shape" of data exchanged in requests/responses.
+Here we model only a minimal notion of data: each field is associated with a `Base` type symbol
+(e.g. `int`, `string`).
+Later, in the semantics, these base symbols can be interpreted as actual Agda types.
 
-```agda
-data Schema : Set where
-  SInt     : Schema                            -- integers
-  SString  : Schema                            -- strings
-  SObject  : List (String × Schema) → Schema   -- object type (fields + sub-schemas)
+```agda 
+data Base : Set where
+  int    : Base
+  string : Base
+
+data Schema : Set where    
+  object  : List (String × Base) → Schema 
 ```
 
 For example, a todo schema could look like:
 
 ```agda
 Todo : Schema
-Todo = SObject (("id" , SInt) :: ("title" , SString) :: [])
+Todo = object (("id" , int) :: ("title" , string) :: [])
 ```
 
 An error schema could look like:
 
 ```agda
 Error : Schema
-Error = SObject (("message" , SString) :: [])
+Error = object (("message" , string) :: [])
 ```
 
 ## 4. Request Bodies (Dependent on Method)
@@ -67,7 +71,7 @@ This ensures:
 Attempting to assign a body to `GET` will result in a **type error**; enforcing REST correctness at compile time.
 
 ## 5. Response Cases
-Each response paris a status code with its payload schema
+Each response pairs a status code with its payload schema
 
 ```agda
 data RespCase : Set where
