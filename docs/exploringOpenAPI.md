@@ -4,6 +4,7 @@ The aim of this document is to explore how I can formalise the OpenAPI Specifica
 
 This document identifies the key components of OpenAPI relevant to my project, outlines how they can be represented in my typed DSL, and explore how I could extend OpenAPI's descriptive power by layering formal semantics on top. The goal is to use OpenAPI as the structural foundation and build a semantic layer that detects and prevents API drift.
 
+---
 
 ## Background
 
@@ -45,6 +46,8 @@ The goal is to model core properties like:
 - Schemas (objects, primitives, optional fields)
 
 This subset reflects the core of REST API design while remaining manageable to encode precisely in a typed language.
+
+---
 
 ## The Structure of OpenAPI (v3.1)
 
@@ -99,6 +102,7 @@ OpenAPI 3.1 integrates fully with JSON Schema (2020-12). Schemas describe the sh
 
 In the formalisation, only finite schemas built from primitive and flat object types are included. This ensures decidable type checking and simplifies correspondence proofs between request/response data and endpoint specifications.
 
+---
 
 ## Choosing a Subset to Formalise 
 
@@ -127,12 +131,15 @@ This subset forms a minimal formal core of OpenAPI sufficient to represent typic
 
 With this, I conclude the structural exploration of OpenAPI. The next stage will focus on giving this structure formal meaning within the DSL.
 
+---
+
 ## References
 
 1. https://swagger.io/specification/
 2. https://swagger.io/docs/specification/v3_0/about/
 3. https://www.emergentmind.com/topics/openapi-specifications
 
+---
 
 ## Appendix: Example Minimal OpenAPI Spec
 
