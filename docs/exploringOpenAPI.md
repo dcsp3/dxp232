@@ -51,7 +51,7 @@ This subset reflects the core of REST API design while remaining manageable to e
 
 ## The Structure of OpenAPI (v3.1)
 
-An OpenAPI document is a [hierarchical structure](#example-minimal-openapi-spec) consisting of several major components:
+An OpenAPI document is a [hierarchical structure](#appendix-example-minimal-openapi-spec) consisting of several major components:
 
 - **Info**: Metadata such as title, version, and description.
 - **Servers**: The environments or base URLs where the API can be accessed.
