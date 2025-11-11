@@ -55,3 +55,12 @@
 
 ## Week 7 (11/11)
 
+- The semantics should be in terms of how the users behave
+- Explore authentication/authorisation - something to prove about security of endpoints
+- Could have some sort of 'guarantee' about endpoints/interactions being secure
+- [Information flow](https://en.wikipedia.org/wiki/Information_flow_(information_theory))
+- Proving [non-interferance](https://en.wikipedia.org/wiki/Non-interference_(security))
+- First try the refinement proof, then later on we can extend semantics   
+
+---
+
