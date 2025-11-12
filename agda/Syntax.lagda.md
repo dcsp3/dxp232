@@ -81,17 +81,10 @@ record Schema : Set where
 
 ## 4. API Level
 
-## 3. Schemas
-The `Schema` type represents the shape of the data exchanged between client and server.
-Each schema specifies:
-- a **type** (object, array, or a primitive like string/integer)
-- **properties** that belong to it (e.g., fields in objects)
-- a list of **required** fields
-- the **items** it contains (for arrays)
-
-along with other optional fields to store metadata.
+---
 
 
+## todo: organise below this
 
 ## 4. Request Bodies (Dependent on Method)
 `Body` is indexed by the HTTP method, encoding REST rules in the type itself.
