@@ -118,6 +118,51 @@ PathTodos : Path
 PathTodos =  record { segments = lit "todos" :: param "id" :: [] }
 ```
 
+### 3.3 Request Bodies
+Represents the payload sent with an HTTP request. Only certain methods can include a body.  
+We restrict this directly at the type level to ensure REST correctness.
+
+```agda
+data Body : Method → Set where
+  NoBody   : Body GET
+  NoBodyD  : Body DELETE
+  HasBody  : Schema → Body POST
+  HasBodyU : Schema → Body PUT
+  HasBodyP : Schema → Body PATCH
+```
+
+This guarantees that:
+- `GET` and `DELETE` operations cannot define a request body
+- `POST`, `PUT` and `PATCH` operations must include one, described by a `Schema`
+
+### 3.4 Responses
+Represents the possible responses returned by an endpoint.  
+Each response pairs an HTTP status with a payload schema, corresponding directly to the `responses:` section in OpenAPI.
+
+```agda
+data Response : Set where
+  response : Status → Schema → Response
+```
+
+A list of `Response` values defines the complete response mapping for an operation.
+
+### 3.5 Endpoint
+Describes a single REST operation, combining its path, method, parameters, request body, and responses.  
+This corresponds directly to an OpenAPI operation object such as `get`, `post`, or `put`.
+
+
+```agda
+record Endpoint : Set where
+  field
+    route       : Path           -- structured path template (e.g., /todos/{id})
+    method      : Method
+    parameters  : List Parameter
+    body        : Body method
+    responses   : List Response
+```
+
+Together, endpoints form the operational core of the API specification.
+
 ---
 
 ## 4. API Level
