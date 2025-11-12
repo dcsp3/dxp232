@@ -7,6 +7,9 @@ module Prelude where
 
 postulate String : Set
 
+data Bool : Set where
+  true false : Bool
+
 {-# BUILTIN STRING String #-}
 
 data List (A : Set) : Set where
