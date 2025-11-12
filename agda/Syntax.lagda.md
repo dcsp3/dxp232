@@ -43,6 +43,36 @@ data Status : Set where
 
 ## 2. Data Level
 
+Defines the structure of the information exchanged between client and server. It captures how OpenAPI represents schemas by describing data shapes, types, and constraints.
+
+### 2.1 Base Types
+Primitive and container types supported by the DSL.
+
+```agda
+data Base : Set where
+  integer string boolean number object array : Base
+```
+
+### 2.2 Schema Definition
+A Schema describes the shape of data defined at the type level.
+It is declared as inductive, since schemas are finite recursive structures.
+This corresponds directly to OpenAPI’s `components/schemas` definitions.
+
+```agda 
+record Schema : Set where
+  inductive
+  field
+    type        : Base                      -- "object", "array", or primitive
+    properties  : List (String × Schema)    -- fields for objects
+    required    : List String               -- required field names
+    items       : Maybe Schema              -- element type for arrays
+
+    enum        : Maybe (List String)       -- allowed values (if constrained)
+    default     : Maybe String              -- default literal (if any)
+    description : Maybe String              -- optional documentation
+    examples    : List String               -- example literals
+```
+
 ---
 
 ## 3. Operation Level
@@ -61,35 +91,6 @@ Each schema specifies:
 
 along with other optional fields to store metadata.
 
-### 3.1 Base Types
-These represent all the primitive and container kinds of data allowed in our subset of OpenAPI.
-
-```agda
-data Base : Set where
-  integer : Base
-  string  : Base
-  boolean : Base
-  number  : Base
-  object  : Base
-  array   : Base
-```
-
-### 3.2 Schema Definition
-Each schema is a record describing its kind, structure, and metadata.
-
-```agda 
-record Schema : Set where
-  inductive
-  field
-    type        : Base                      -- "object", "array", or primitive
-    properties  : List (String × Schema)    -- fields for objects
-    required    : List String               -- required field names
-    items       : Maybe Schema              -- element type for arrays
-    enum        : Maybe (List String)       -- allowed values (if constrained)
-    default     : Maybe String              -- default literal (if any)
-    description : Maybe String              -- optional documentation
-    examples    : List String               -- example literals
-```
 
 
 ## 4. Request Bodies (Dependent on Method)
