@@ -154,7 +154,7 @@ This corresponds directly to an OpenAPI operation object such as `get`, `post`, 
 ```agda
 record Endpoint : Set where
   field
-    route       : Path           -- structured path template (e.g., /todos/{id})
+    route       : Path          
     method      : Method
     parameters  : List Parameter
     body        : Body method
@@ -166,5 +166,13 @@ Together, endpoints form the operational core of the API specification.
 ---
 
 ## 4. API Level
+Defines the top-level structure of an API specification.  
+This corresponds to the root of an OpenAPI document, combining reusable schemas and all defined paths.
 
----
+```agda
+record API : Set where
+  field  
+    paths      : List Endpoint           -- all defined path operations
+    components : List (String × Schema)  -- components/schemas
+```
+
