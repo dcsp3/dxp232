@@ -77,51 +77,49 @@ record Schema : Set where
 
 ## 3. Operation Level
 
+Defines how data is used within individual REST operations.
+This layer corresponds to the `paths` and `operations` objects in OpenAPI.
+
+### 3.1 Parameters
+Parameters represent input values passed to an operation through the URL path or query string.  
+Each parameter includes its name, where it appears, whether it is required, and its type.
+
+```agda
+data ParamLocation : Set where
+  path query : ParamLocation
+
+record Parameter : Set where
+  field
+    name     : String
+    location : ParamLocation   -- corresponds to OpenAPI's 'in' 
+    required : Bool 
+    schema   : Base 
+```
+
+### 3.2 Path Templates
+Represents structured API routes such as `/todos/{id}`.
+Each path is composed of segments, which can be either literal strings or parameter placeholders.
+This corresponds to the keys defined under `paths:` in OpenAPI.
+
+```agda
+data PathSegment : Set where
+  lit   : String → PathSegment -- e.g., "todos"
+  param : String → PathSegment -- e.g., "{id}"
+
+record Path : Set where
+  field
+    segments : List PathSegment
+```
+
+For example, an OpenAPI path like "/todos/{id}" is represented as:
+
+```agda
+PathTodos : Path
+PathTodos =  record { segments = lit "todos" :: param "id" :: [] }
+```
+
 ---
 
 ## 4. API Level
 
 ---
-
-
-## todo: organise below this
-
-## 4. Request Bodies (Dependent on Method)
-`Body` is indexed by the HTTP method, encoding REST rules in the type itself.
-
-```agda
-data Body : Method → Set where
-  NoBody  : Body GET
-  HasBody : Schema → Body POST
-```
-
-This ensures:
-- `GET` requests cannot have a body
-- `POST` requests must carry a payload defined by a `Schema`
-
-Attempting to assign a body to `GET` will result in a **type error**; enforcing REST correctness at compile time.
-
-## 5. Response Cases
-Each response pairs a status code with its payload schema
-
-```agda
-data RespCase : Set where
-  Case : Status → Schema → RespCase
-```
-
-We represent endpoint responses as a *list* of `RespCase` values instead of a function `Status → Schema`.
-
-## 6. Endpoint Specification
-An `Endpoint` describes a single REST endpoint.
-
-```agda
-record Endpoint : Set where
-  field
-    path      : String        -- Route (e.g. "/todos/{id}")
-    method    : Method        -- HTTP method
-    body      : Body method   -- Request Body (dependent on method)
-    responses : List RespCase -- Mapping of statuses to schemas
-```
-
-Example:
-
