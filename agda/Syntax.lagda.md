@@ -113,7 +113,7 @@ record Path : Set where
 
 For example, an OpenAPI path like "/todos/{id}" is represented as:
 
-```agda
+```code
 PathTodos : Path
 PathTodos =  record { segments = lit "todos" :: param "id" :: [] }
 ```
