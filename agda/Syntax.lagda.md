@@ -10,6 +10,9 @@ The syntax is grouped as follows:
 | Operation Level | Parameters, paths, request bodies, responses, endpoints | `paths` and their nested operations |
 | API Level | Top-level API definition and metadata | Root OpenAPI document (`info`, `paths`, `components`) |
 
+
+>A direct translation of an OpenAPI spec to this syntax is given in [`ExampleTodoAPI.lagda.md`](./ExampleTodoAPI.lagda.md).
+
 ---
 
 ```agda
