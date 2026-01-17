@@ -115,3 +115,35 @@ data WFSchema : Schema → Set where
     → Schema.required s ≡ []
     → WFSchema s
 ```
+
+## 2. Well-formed Parameters
+
+Parameters represent values passed through the URL path or query string.
+Our syntax permits constructing arbitrary `Parameter` records, but not every such record corresponds to a structurally meaningful OpenAPI-style parameter in our subset.
+
+There are two structural constraints we enforce:
+
+1. **Path parameters are required.**  
+   A path template cannot omit a placeholder segment, so OpenAPI treats path parameters as required.
+
+2. **Parameters are restricted to primitive base types in this DSL.**  
+   Although OpenAPI supports array/object parameters, doing so relies on additional machinery (a full schema shape for the parameter plus serialization controls such as `style` and `explode`). Our `Parameter` syntax records only a base type (`Base`), so allowing `array` or `object` here would be underspecified. We therefore restrict parameters to primitive base types in this fragment.
+
+The judgement `WFParameter p` enforces only these structural invariants.
+
+```agda
+data WFParameter : Parameter → Set where
+
+  wf-path-param :
+    ∀ {p}
+    → Parameter.location p ≡ path
+    → Parameter.required p ≡ true
+    → IsPrimitive (Parameter.schema p)
+    → WFParameter p
+
+  wf-query-param :
+    ∀ {p}
+    → Parameter.location p ≡ query
+    → IsPrimitive (Parameter.schema p)
+    → WFParameter p
+```
