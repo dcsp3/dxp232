@@ -22,54 +22,6 @@ open import Prelude
 open import Syntax
 ```
 
-## 0. Auxiliary Definitions
-
-We keep a small amount of list-related code in this module. These are not part of the DSL itself, but they let us state well-formedness judgements cleanly.
-
-
-### 0.1 All-elements predicate
-
-```agda
-data All {A : Set} (P : A → Set) : List A → Set where
-  all[]  : All P []
-  all::_ : ∀ {x xs} → P x → All P xs → All P (x :: xs)
-```
-
-### 0.2 Membership (for required fields)
-
-```agda
-data _∈_ : String → List String → Set where
-  here  : ∀ {x xs} → x ∈ (x :: xs)
-  there : ∀ {x y xs} → x ∈ xs → x ∈ (y :: xs)
-```
-
-### 0.3 Projections and key extraction
-`Schema.properties` and `API.components` are represented as association lists. We often want their keys.
-
-```agda
-fst : ∀ {A B : Set} → A × B → A
-fst (a , b) = a
-
-snd : ∀ {A B : Set} → A × B → B
-snd (a , b) = b
-
-keys : List (String × Schema) → List String
-keys [] = []
-keys (kv :: rest) = fst kv :: keys rest
-```
-
-### 0.4 Primitive Base Types
-
-`Base` includes container kinds (`object`, `array`) as well as primitives. We isolate the primitive cases.
-
-```agda
-data IsPrimitive : Base → Set where
-  prim-integer : IsPrimitive integer
-  prim-string  : IsPrimitive string
-  prim-boolean : IsPrimitive boolean
-  prim-number  : IsPrimitive number
-```
-
 ## 1. Well-formed Schemas
 
 A `Schema` in our syntax is a single record that contains fields for all schema shapes:
@@ -88,6 +40,12 @@ That’s great for expressing OpenAPI-like documents, but it permits contradicto
 This mirrors the “structural validity” you would expect from an OpenAPI-shaped schema in our subset. It intentionally does not attempt to validate `enum`, `default`, or `examples` against the schema type, since those are semantic/value-level concerns (handled later).
 
 ```agda
+data IsPrimitive : Base → Set where
+  prim-integer : IsPrimitive integer
+  prim-string  : IsPrimitive string
+  prim-boolean : IsPrimitive boolean
+  prim-number  : IsPrimitive number
+
 data WFSchema : Schema → Set where
 
   wf-object :
@@ -147,3 +105,52 @@ data WFParameter : Parameter → Set where
     → IsPrimitive (Parameter.schema p)
     → WFParameter p
 ```
+
+## 3. Well-formed Paths
+
+In our DSL, a `Path` is a structured template made of `PathSegment`s, where segments are either literals (`lit "todos"`) or placeholders (`param "id"`). This corresponds to OpenAPI-style route templates such as `/todos/{id}`.
+
+Since paths and parameters are specified independently in the syntax, it is possible to construct inconsistent specifications. For example, a path may contain a placeholder `{id}` without any corresponding path parameter declaration, or a path parameter may be declared without appearing in the path template.
+
+The judgement `WFPath path params` enforces structural coherence between a path template and the list of parameters declared for an operation. It enforces the following two constraints:
+
+1. **Every placeholder is declared**: for each `{x}` appearing in the path, there is a parameter with `location = path` and `name = x`.
+2. **No orphan path parameters**: every parameter declared with `location = path` appears as a placeholder `{x}` in the path.
+
+These two directions ensure the path template and its declared path parameters describe the same set of path variables. This mirrors the OpenAPI requirement that template expressions in a path MUST correspond to declared `in: path` parameters of the same name.
+
+>This judgement does not enforce parameter typing (handled by `WFParameter`) and does not impose best practices or behavioural routing properties. It exists solely to rule out structurally incoherent path/parameter combinations before semantics and compatibility reasoning.
+
+```agda
+sameLoc : ParamLocation → ParamLocation → Bool
+sameLoc path  path  = true
+sameLoc path  query = false
+sameLoc query path  = false
+sameLoc query query = true
+
+pathPlaceholders : Path → List String
+pathPlaceholders p = go (Path.segments p)
+  where
+    go : List PathSegment → List String
+    go [] = []
+    go (lit _   :: ss) = go ss
+    go (param x :: ss) = x :: go ss
+
+paramNamesAt : ParamLocation → List Parameter → List String
+paramNamesAt ℓ [] = []
+paramNamesAt ℓ (p :: ps) =
+  if sameLoc ℓ (Parameter.location p)
+  then Parameter.name p :: paramNamesAt ℓ ps
+  else paramNamesAt ℓ ps
+
+pathParamNames : List Parameter → List String
+pathParamNames = paramNamesAt path
+
+data WFPath : Path → List Parameter → Set where
+  wf-path :
+      ∀ {p ps}
+    → pathPlaceholders p ⊆ pathParamNames ps
+    → pathParamNames ps ⊆ pathPlaceholders p
+    → WFPath p ps
+```
+
