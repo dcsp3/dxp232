@@ -154,3 +154,36 @@ data WFPath : Path → List Parameter → Set where
     → WFPath p ps
 ```
 
+## 4. Well-formed Request Bodies
+
+The type `Body : Method → Set` already enforces a key structural constraint: only methods that admit a request body can carry one (and methods like `GET` cannot). This prevents method/body mismatches by construction.
+
+However, the `Body` type does not ensure that the schema attached to a request body is itself structurally coherent. The judgement `WFBody b` therefore propagates schema well-formedness upward:
+
+- `NoBody` is always well-formed.
+- `HasBody s` is well-formed precisely when `WFSchema s` holds.
+
+```agda
+data WFBody : ∀ {m} → Body m → Set where
+  wf-nobody   : WFBody NoBody
+  wf-nobodyD  : WFBody NoBodyD
+
+  wf-hasBody  : ∀ {s} → WFSchema s → WFBody (HasBody  s)
+  wf-hasBodyU : ∀ {s} → WFSchema s → WFBody (HasBodyU s)
+  wf-hasBodyP : ∀ {s} → WFSchema s → WFBody (HasBodyP s)
+```
+
+## 5. Well-formed Responses
+
+A response associates a status code with a schema describing the response payload. While the syntax allows any schema to be attached to a response, well-formedness ensures that the attached schema is structurally coherent.
+
+The judgement `WFResponse r` enforces this minimal invariant: the response schema must be well-formed (`WFSchema`).
+
+```agda
+data WFResponse : Response → Set where
+  wf-response :
+    ∀ {st s}
+    → WFSchema s
+    → WFResponse (response st s)
+```
+
