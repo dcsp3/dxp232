@@ -187,3 +187,38 @@ data WFResponse : Response → Set where
     → WFResponse (response st s)
 ```
 
+## 6. Well-formed Endpoints
+
+An `Endpoint` bundles together the operational parts of a REST operation: its route, method, parameters, request body, and responses.
+
+Individually, each piece can be syntactically valid while still being structurally incoherent as an operation (e.g. route placeholders not matching declared path parameters, malformed body schema, malformed response schemas).
+
+The judgement `WFEndpoint e` states that an endpoint is structurally coherent when:
+- its path template and declared parameters agree (`WFPath`)
+- each declared parameter is structurally valid (`WFParameter`)
+- its request body (if present by method) carries a well-formed schema (`WFBody`)
+- each response carries a well-formed schema (`WFResponse`)
+
+```agda
+data WFEndpoint : Endpoint → Set where
+  wf-endpoint :
+    ∀ {e}
+    → WFPath (Endpoint.route e) (Endpoint.parameters e)
+    → All WFParameter (Endpoint.parameters e)
+    → WFBody (Endpoint.body e)
+    → All WFResponse (Endpoint.responses e)
+    → WFEndpoint e
+```
+
+## 7. Well-formed APIs
+
+An `API` specification bundles together reusable component schemas and the collection of defined path operations. Well-formedness at the API level is compositional: an API is well-formed when all of its component schemas are well-formed and all of its paths (endpoints) are well-formed.
+
+```agda
+data WFAPI : API → Set where
+  wf-api :
+    ∀ {api}
+    → All (λ kv → WFSchema (snd kv)) (API.components api)
+    → All WFEndpoint (API.paths api)
+    → WFAPI api
+```
