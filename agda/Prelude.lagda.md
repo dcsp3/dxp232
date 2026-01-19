@@ -88,6 +88,16 @@ data _∈_ {A : Set} : A → List A → Set where
 infix 4 _⊆_
 _⊆_ : ∀ {A : Set} → List A → List A → Set
 xs ⊆ ys = All (λ x → x ∈ ys) xs
+
+
+-- If every element of a list satisfies P, then any specific member satisfies P.
+All-∈ :
+  ∀ {A : Set} {P : A → Set} {x : A} {xs : List A}
+  → All P xs
+  → x ∈ xs
+  → P x
+All-∈ (all::_ px _)  here       = px
+All-∈ (all::_ _ pxs) (there x∈)  = All-∈ pxs x∈
 ```
 
 ## Association-list utils (DSL-agnostic)
