@@ -11,7 +11,7 @@ open import Syntax
 
 ---
 
-### Reference OpenAPI Specification
+## Reference OpenAPI Specification
 
 ```yaml
 openapi: 3.1.0
@@ -55,7 +55,48 @@ components:
 
 ---
 
-### Schemas
+## Schemas
+
+### Primitive Schemas
+
+```agda
+IdSchema : Schema
+IdSchema = record { type = integer
+                  ; properties = []
+                  ; required = []
+                  ; items = nothing
+                  ; enum = nothing
+                  ; default = nothing
+                  ; description = nothing
+                  ; examples = []
+                  }
+
+TitleSchema : Schema
+TitleSchema = record { type = string
+                     ; properties = []
+                     ; required = []
+                     ; items = nothing
+                     ; enum = nothing
+                     ; default = nothing
+                     ; description = nothing
+                     ; examples = []
+                     }
+
+MessageSchema : Schema
+MessageSchema = record { type = string
+                       ; properties = []
+                       ; required = []
+                       ; items = nothing
+                       ; enum = nothing
+                       ; default = nothing
+                       ; description = nothing
+                       ; examples = []
+                       }
+```
+
+
+
+### Object Schemas
 
 ```agda
 Todo : Schema
@@ -69,28 +110,6 @@ Todo = record
   ; description = nothing
   ; examples    = []
   }
-    where
-      IdSchema : Schema
-      IdSchema = record { type = integer
-                        ; properties = []
-                        ; required = []
-                        ; items = nothing
-                        ; enum = nothing
-                        ; default = nothing
-                        ; description = nothing
-                        ; examples = []
-                        }
-
-      TitleSchema : Schema
-      TitleSchema = record { type = string
-                           ; properties = []
-                           ; required = []
-                           ; items = nothing
-                           ; enum = nothing
-                           ; default = nothing
-                           ; description = nothing
-                           ; examples = []
-                           }
 
 Error : Schema
 Error = record
@@ -102,24 +121,12 @@ Error = record
   ; default     = nothing
   ; description = nothing
   ; examples    = []
-  }
-    where
-      MessageSchema : Schema
-      MessageSchema = record { type = string
-                             ; properties = []
-                             ; required = []
-                             ; items = nothing
-                             ; enum = nothing
-                             ; default = nothing
-                             ; description = nothing
-                             ; examples = []
-                             }
-      
+  }  
 ```
 
 ---
 
-### Path
+## Path
 
 ```agda
 PathTodos : Path
@@ -129,7 +136,7 @@ PathTodos = record { segments = lit "todos" :: param "id" :: [] }
 ---
 
 
-### Parameter
+## Parameter
 
 ```agda
 ParamId : Parameter
@@ -143,7 +150,7 @@ ParamId = record
 
 ---
 
-### Responses
+## Responses
 
 ```agda
 ResponsesGetTodo : List Response
@@ -152,7 +159,7 @@ ResponsesGetTodo = response OK Todo :: response NotFound Error :: []
 
 ---
 
-### Endpoint
+## Endpoint
 
 ```agda
 GetTodoEndpoint : Endpoint
@@ -167,7 +174,7 @@ GetTodoEndpoint = record
 
 ---
 
-### API
+## API
 
 ```agda
 TodoAPI : API
