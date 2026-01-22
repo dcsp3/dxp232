@@ -16,7 +16,7 @@ This module is deliberately conservative. It does not enforce best practices or 
 - semantic concerns (and belong in the next layer).
 
 ```agda
-module WellFormed where
+module WellFormed.Core where
 
 open import Prelude
 open import Syntax
@@ -225,6 +225,5 @@ data WFAPI : API → Set where
 
 ---
 
-Well-formedness serves as the boundary between raw syntax and meaningful specifications. This allows us to restrict all semantic definitions to well-formed APs from this point onward.
+Well-formedness serves as the boundary between raw syntax and meaningful specifications. This allows us to restrict all semantic definitions to well-formed APIs from this point onward.
 
-To support this transition, the [`WellFormedExamples`](./WellFormedExamples.lagda.md) module introduces a small number of representative inversion and coherence lemmas, together with a complete well-formedness proof for the Todo API example. These results are demonstrations of how the judgements defined above are intended to be used in practice.
