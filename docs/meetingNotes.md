@@ -1,5 +1,9 @@
 # Meeting Notes
 
+# Semester 1
+
+---
+
 ## Week 1 (30/09)
 - Group meeting with all students - everyone shared their initial project ideas.  
 - Started thinking about what direction I want to take mine in.  
@@ -62,5 +66,27 @@
 - Proving [non-interferance](https://en.wikipedia.org/wiki/Non-interference_(security))
 - First try the refinement proof, then later on we can extend semantics   
 
+## Weeks 8-10
+
+- Regular catchups but more focus on other module deadlines
+
+---
 ---
 
+
+# Semester 2
+
+---
+
+# Week 1 (20/1)
+
+- Explained the idea of well-formedness, why I defined it and how it sits between syntax and semantics
+- Discussed how semantics should only apply to well-formed APIs
+- Also explained future idea of translation + demonstrating real life case-studies 
+- Supervisor suggested defining semantics in an operational way
+- Idea to model API evolution as a sequence of steps (small-step semantics)
+- Compatibility = existence of a sequence of valid steps from API A to API B (transitive closure)
+- Leads naturally to a rule-based notion of API evolution
+- Would be helpful to write a document and create a plan for semantics
+
+---
