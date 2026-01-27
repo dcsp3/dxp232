@@ -25,18 +25,23 @@ data List (A : Set) : Set where
 
 infixr 10 _::_
 
-data _×_ (A B : Set) : Set where
-  _,_ : A → B → A × B
-
-fst : ∀ {A B : Set} → A × B → A
-fst (a , b) = a
-
-snd : ∀ {A B : Set} → A × B → B
-snd (a , b) = b
-
 data Maybe (A : Set) : Set where
   nothing : Maybe A
   just    : A → Maybe A
+
+record Σ (A : Set) (B : A → Set) : Set where
+  constructor _,_
+  field
+    fst : A
+    snd : B fst
+
+_×_ : Set → Set → Set
+A × B = Σ A (λ _ → B)
+
+infixr 2 _×_
+
+∃ : ∀ {A : Set} → (A → Set) → Set
+∃ {A} P = Σ A P
 ```
 
 ## Equality and basic logic
@@ -45,6 +50,7 @@ data Maybe (A : Set) : Set where
 data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x
 
+data ⊤ : Set where
 data ⊥ : Set where
 
 ¬_ : Set → Set
@@ -52,6 +58,13 @@ data ⊥ : Set where
 
 _≢_ : ∀ {A : Set} → A → A → Set
 x ≢ y = ¬ (x ≡ y)
+
+data Dec (P : Set) : Set where
+  yes : P → Dec P
+  no  : (¬ P) → Dec P
+
+postulate
+  _≟_ : (x y : String) → Dec (x ≡ y)
 ```
 
 ## Equality Utilities
@@ -105,5 +118,5 @@ All-∈ (all::_ _ pxs) (there x∈)  = All-∈ pxs x∈
 ```agda
 keys : ∀ {A : Set} → List (String × A) → List String
 keys [] = []
-keys (kv :: rest) = fst kv :: keys rest
+keys ((k , _) :: rest) = k :: keys rest
 ```
