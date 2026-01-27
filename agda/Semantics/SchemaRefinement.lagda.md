@@ -27,7 +27,29 @@ This judgement is defined by constructors corresponding to the different schema 
 Contravariant refinement (used for requests) will later be obtained by flipping the direction
 of this relation using variance.
 
-We define the judgement first, and then introduce its refinement rules incrementally.
+Before introducing the refinement rules themselves, we define a small amount of
+supporting machinery used by the object case.
+
+```agda
+lookupProp : String → List (String × Schema) → Maybe Schema
+lookupProp k [] = nothing
+lookupProp k ((k' , s) :: ps) with k ≟ k'
+... | yes _ = just s
+... | no  _ = lookupProp k ps
+
+-- All old properties are preserved and refined in the new object, parameterised by a relation on schemas.
+PropsRefine :
+    (Schema → Schema → Set)
+  → List (String × Schema)
+  → List (String × Schema)
+  → Set
+PropsRefine R [] newProps = ⊤
+PropsRefine R ((k , so) :: oldProps) newProps =
+  (∃ (λ sn → (lookupProp k newProps ≡ just sn) × (R so sn)))
+  × PropsRefine R oldProps newProps
+```
+
+With these definitions in place, we can now define covariant schema refinement itself.
 
 ```agda
 data Schema⊑Co : Schema → Schema → Set where
@@ -55,5 +77,65 @@ additional constructors, without changing the overall structure.
     → IsPrimitive (Schema.type s)
     → IsPrimitive (Schema.type t)
     → Schema.type s ≡ Schema.type t
+    → Schema⊑Co s t
+```
+
+### 2.2 Array schemas
+
+Array schemas refine covariantly when their item schemas refine covariantly.
+
+Intuitively, a client that can consume elements of a certain shape can also
+consume arrays whose elements are refined versions of that shape.
+
+Well-formedness ensures that array schemas always carry an item schema, so
+this rule is structurally well-defined.
+
+
+```agda
+  ⊑-array :
+      ∀ {s t si ti}
+    → WFSchema s
+    → WFSchema t
+    → Schema.type s ≡ array
+    → Schema.type t ≡ array
+    → Schema.items s ≡ just si
+    → Schema.items t ≡ just ti
+    → Schema⊑Co si ti
+    → Schema⊑Co s t
+```
+
+### 2.3 Object schemas
+
+Objects are the main non-trivial case of schema refinement.
+
+In covariant positions (responses), refinement must preserve everything that existing
+clients might read. In particular, a client consuming an object may rely on any of its
+fields, including optional ones. Removing or changing such fields would therefore be
+breaking.
+
+For this reason, covariant object refinement enforces the following conditions:
+
+- Preservation of properties: every property present in the old object must still
+be present in the new object.
+- Recursive refinement: for each preserved property, the corresponding field schema
+must itself refine covariantly.
+- Extensibility: the new object may introduce additional properties, which existing
+clients can safely ignore.
+
+These conditions are expressed using the auxiliary predicate `PropsRefine`, which states
+that all properties of one object are preserved and related by a given schema relation.
+Using this predicate, covariant object refinement is defined as a constructor of
+`Schema⊑Co`.
+
+```agda
+  ⊑-object :
+    ∀ {s t}
+    → WFSchema s
+    → WFSchema t
+    → Schema.type s ≡ object
+    → Schema.type t ≡ object
+    → PropsRefine Schema⊑Co
+       (Schema.properties s)
+       (Schema.properties t)
     → Schema⊑Co s t
 ```
