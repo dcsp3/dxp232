@@ -76,7 +76,7 @@ The following inversion lemma extracts the exact guarantees provided by well-for
 record ObjectInv (s : Schema) : Set where
   field
     noItems : Schema.items s ≡ nothing
-    propsWF : All (λ kv → WFSchema (snd kv)) (Schema.properties s)
+    propsWF : All (λ (k , sch) → WFSchema sch) (Schema.properties s)
     reqWF   : All (λ r → r ∈ keys (Schema.properties s)) (Schema.required s)
 
 array≢object : array ≡ object → ⊥
