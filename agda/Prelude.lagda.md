@@ -51,6 +51,8 @@ data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x
 
 data ⊤ : Set where
+  tt : ⊤
+
 data ⊥ : Set where
 
 ¬_ : Set → Set
