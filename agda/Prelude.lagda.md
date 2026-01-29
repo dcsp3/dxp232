@@ -100,10 +100,17 @@ data _∈_ {A : Set} : A → List A → Set where
   here  : ∀ {x xs} → x ∈ (x :: xs)
   there : ∀ {x y xs} → x ∈ xs → x ∈ (y :: xs)
 
+data _∉_ {A : Set} (x : A) : List A → Set where
+  notin[]  : x ∉ []
+  notin::_ : ∀ {y ys} → x ≢ y → x ∉ ys → x ∉ (y :: ys)
+
+data Unique {A : Set} : List A → Set where
+  uniq[]  : Unique []
+  uniq::_ : ∀ {x xs} → x ∉ xs → Unique xs → Unique (x :: xs)
+
 infix 4 _⊆_
 _⊆_ : ∀ {A : Set} → List A → List A → Set
 xs ⊆ ys = All (λ x → x ∈ ys) xs
-
 
 -- If every element of a list satisfies P, then any specific member satisfies P.
 All-∈ :
