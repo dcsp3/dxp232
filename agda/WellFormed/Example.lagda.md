@@ -42,6 +42,9 @@ These schemas are well-formed by construction and carry no object or array speci
 
 **Object schemas**
 ```agda
+postulate
+  id≢title : "id" ≢ "title"
+
 Todo-is-object : Schema.type Todo ≡ object
 Todo-is-object = refl
 
@@ -61,6 +64,7 @@ wf-TodoSchema =
     Todo-has-no-items
     Todo-props-wf
     Todo-required-ok
+    Todo-keys-unique
   where
     Todo-props-wf :
       All (λ (k , sch) → WFSchema sch) (Schema.properties Todo)
@@ -74,6 +78,11 @@ wf-TodoSchema =
       all::_ here
         (all::_ (there here) all[])
 
+    Todo-keys-unique : Unique (keys (Schema.properties Todo))
+    Todo-keys-unique =
+      uniq::_ (notin::_ id≢title notin[])
+        (uniq::_ notin[] uniq[])
+
 wf-ErrorSchema : WFSchema Error
 wf-ErrorSchema =
   wf-object
@@ -81,6 +90,7 @@ wf-ErrorSchema =
     Error-has-no-items
     Error-props-wf
     Error-required-ok
+    Error-keys-unique
   where
     Error-props-wf :
       All (λ (k , sch) → WFSchema sch) (Schema.properties Error)
@@ -91,6 +101,10 @@ wf-ErrorSchema =
       All (λ r → r ∈ keys (Schema.properties Error)) (Schema.required Error)
     Error-required-ok =
       all::_ here all[]
+
+    Error-keys-unique : Unique (keys (Schema.properties Error))
+    Error-keys-unique =
+      uniq::_ notin[] uniq[]
 ```
 
 These proofs rely directly on the wf-object constructor and make explicit:
@@ -98,7 +112,10 @@ These proofs rely directly on the wf-object constructor and make explicit:
 - the object shape,
 - the absence of array items,
 - recursive well-formedness of property schemas,
-- coherence of required fields.
+- coherence of required fields,
+- uniqueness of property keys (so properties behave like a finite map).
+
+In this example, inequality between distinct field names is assumed explicitly, since the core language does not provide a computational string inequality.
 
 ### 3.2 Endpoint Fragments
 

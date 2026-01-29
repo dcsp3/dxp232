@@ -56,7 +56,7 @@ array-inv (wf-array _ items≡just wf-it _ _) _ =
     }
 
 -- Object schemas cannot have array type.
-array-inv (wf-object tyObj _ _ _) tyArr =
+array-inv (wf-object tyObj _ _ _ _) tyArr =
   ⊥-elim (object≢array (trans (sym tyObj) tyArr))
 
 -- Primitive schemas cannot have array type.
@@ -70,7 +70,7 @@ This lemma ensures that semantic interpretations of arrays never need to handle 
 
 Object schemas are the most structurally rich case in our subset: they carry named properties and a list of required fields that must be scoped to those properties. Later semantic and compatibility definitions rely on these invariants when interpreting or comparing object-shaped payloads.
 
-The following inversion lemma extracts the exact guarantees provided by well-formedness for object schemas: object schemas have no array items, all property schemas are themselves well-formed, and every required field name corresponds to a declared property key.
+The following inversion lemma extracts the exact guarantees provided by well-formedness for object schemas: object schemas have no array items, all property schemas are themselves well-formed, and every required field name corresponds to a declared property key. Additionally, object schemas have unique property keys, so the `properties` list behaves like a finite map.
 
 ```agda
 record ObjectInv (s : Schema) : Set where
@@ -78,6 +78,7 @@ record ObjectInv (s : Schema) : Set where
     noItems : Schema.items s ≡ nothing
     propsWF : All (λ (k , sch) → WFSchema sch) (Schema.properties s)
     reqWF   : All (λ r → r ∈ keys (Schema.properties s)) (Schema.required s)
+    uniqKeys : Unique (keys (Schema.properties s))
 
 array≢object : array ≡ object → ⊥
 array≢object ()
@@ -92,11 +93,12 @@ object-inv :
   → ObjectInv s
 
 -- Object case: all coherence facts are carried by the WF proof.
-object-inv (wf-object _ noItems propsWF reqWF) _ =
+object-inv (wf-object _ noItems propsWF reqWF uniq) _ =
   record
     { noItems = noItems
     ; propsWF = propsWF
     ; reqWF   = reqWF
+    ; uniqKeys = uniq
     }
 
 -- Array schemas cannot have object type.
