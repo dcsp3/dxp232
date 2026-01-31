@@ -78,17 +78,27 @@ property list refines itself (field-by-field) under `Schema⊑Co`.
 
 This relies on the well-formedness invariant that object property keys are unique so that the list behaves like a real property map; otherwise refinement becomes order-sensitive and can misrepresent OpenAPI objects.
 
-```
+---
 
-skip-after-head :
+layman terms explanation (incorporate this later maybe):
+We need to prove `PropsRefine Schema⊑Co props props`
+
+But `PropsRefine` is defined by lookup into the new list. So even reflexivity needs a witness that says:
+- each key in props can be looked up in props
+- and its schema refines itself
+
+that’s what `PropsRefine-refl` gives us...
+
+```
+PropsRefine-insert-after-head :
     ∀ {k0 s0 k s ps target}
   → PropsRefine Schema⊑Co ps ((k0 , s0) :: target)
   → k ∉ keys ps
   → PropsRefine Schema⊑Co ps ((k0 , s0) :: (k , s) :: target)
 
-skip-after-head {ps = []} tt _ = tt
+PropsRefine-insert-after-head {ps = []} tt _ = tt
 
-skip-after-head
+PropsRefine-insert-after-head
   {k0 = k0} {s0 = s0} {k = k} {s = s}
   {ps = (x , sx) :: ps'} {target = target}
   ((sn , (eq , ref)) , rest)
@@ -97,7 +107,7 @@ skip-after-head
   ( sn
   , ( eq' , ref )
   )
-  , skip-after-head
+  , PropsRefine-insert-after-head
     {k0 = k0} {s0 = s0} {k = k} {s = s} {ps = ps'} {target = target}
     rest
     k∉tail
@@ -133,7 +143,7 @@ PropsRefine-tail {k} {sch} {ps = (k' , sch') :: ps'}
   (sch' , (trans (lookupProp-skip (λ e → k≢k' (sym e))) lookupProp-here , ⊑Co-refl wfSch'))
   
   -- 2. Tail witness: use skip-after-head to insert (k', sch') into the target of the recursion
-  , skip-after-head
+  , PropsRefine-insert-after-head
     {k0 = k} {s0 = sch} {k = k'} {s = sch'} {ps = ps'} {target = ps'}
     (PropsRefine-tail {k = k} {sch = sch} {ps = ps'} wfSch uniqTail k∉tail rest)
     k'∉tail                                    -- Proof that k' is not in ps'
