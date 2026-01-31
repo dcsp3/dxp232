@@ -90,6 +90,9 @@ But `PropsRefine` is defined by lookup into the new list. So even reflexivity ne
 that’s what `PropsRefine-refl` gives us...
 
 ```
+-- if ps already refines the target object, then adding a new field (k,s) to the target is safe as long as k is fresh
+-- old properties are still preserved, matching OpenAPI’s backward-compatibility rule for responses
+
 PropsRefine-insert-after-head :
     ∀ {k0 s0 k s ps target}
   → PropsRefine Schema⊑Co ps ((k0 , s0) :: target)
@@ -121,8 +124,11 @@ PropsRefine-insert-after-head
       trans
         (lookupProp-insert-after-head x≢k)
         eq
+```
 
--- Tail-to-whole: if k is not in keys ps, then ps refines (k,sch)::ps.
+```agda
+-- adding a fresh property k preserves refinement of existing properties, provided it doesn't already exist
+
 PropsRefine-tail :
     ∀ {k sch ps}
   → WFSchema sch
@@ -147,7 +153,10 @@ PropsRefine-tail {k} {sch} {ps = (k' , sch') :: ps'}
     {k0 = k} {s0 = sch} {k = k'} {s = sch'} {ps = ps'} {target = ps'}
     (PropsRefine-tail {k = k} {sch = sch} {ps = ps'} wfSch uniqTail k∉tail rest)
     k'∉tail                                    -- Proof that k' is not in ps'
+```
 
+```agda
+-- property refinement reflexivity final boss ie what we use in the main lemmas
 PropsRefine-refl :
     ∀ {ps}
   → Unique (keys ps)
@@ -176,6 +185,7 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
 
 ```agda
 ⊑Co-refl (wf-prim prim items≡ props≡ req≡) =
+  -- primitives refine themselves (same primitive type)
   ⊑-prim
     (wf-prim prim items≡ props≡ req≡)
     (wf-prim prim items≡ props≡ req≡)
@@ -183,6 +193,7 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
 
 ⊑Co-refl (wf-array ty≡ items≡ wfItem props≡ req≡) =
   ⊑-array
+    -- arrays refine covariantly when their item schemas refine (recurse on items)
     (wf-array ty≡ items≡ wfItem props≡ req≡)
     (wf-array ty≡ items≡ wfItem props≡ req≡)
     ty≡ ty≡
@@ -191,6 +202,7 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
 
 ⊑Co-refl (wf-object ty≡ items≡ wfProps wfReq wfUniq) =
   ⊑-object
+    -- objects refine when all old properties are preserved and refine
     (wf-object ty≡ items≡ wfProps wfReq wfUniq)
     (wf-object ty≡ items≡ wfProps wfReq wfUniq)
     ty≡ ty≡
@@ -199,3 +211,4 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
 
 ---
 
+## 2. Transitivity
