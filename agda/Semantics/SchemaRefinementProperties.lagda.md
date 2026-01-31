@@ -26,6 +26,7 @@ open import Semantics.SchemaRefinement
 Reflexivity states that every well-formed schema is a safe replacement for itself.
 
 ```agda
+-- todo: cleanup code and explanations
 ⊑Co-refl : ∀ {s} → WFSchema s → Schema⊑Co s s
 ```
 
@@ -35,8 +36,8 @@ showing that each property can be looked up in its own property list, allowing u
 build the `PropsRefine` witness.
 
 
-### 1.1 Lookup helper
-
+### 1.1 Lookup helpers
+git
 The object case relies on the fact that looking up a key at the head of an association list succeeds.
 
 ```agda
