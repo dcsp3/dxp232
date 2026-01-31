@@ -104,6 +104,15 @@ data _∉_ {A : Set} (x : A) : List A → Set where
   notin[]  : x ∉ []
   notin::_ : ∀ {y ys} → x ≢ y → x ∉ ys → x ∉ (y :: ys)
 
+∉-elim :
+  ∀ {A : Set} {x : A} {xs : List A}
+  → x ∉ xs
+  → x ∈ xs
+  → ⊥
+∉-elim notin[] ()
+∉-elim (notin::_ x≢y x∉ys) here        = x≢y refl
+∉-elim (notin::_ _   x∉ys) (there x∈)  = ∉-elim x∉ys x∈
+
 data Unique {A : Set} : List A → Set where
   uniq[]  : Unique []
   uniq::_ : ∀ {x xs} → x ∉ xs → Unique xs → Unique (x :: xs)
