@@ -117,10 +117,6 @@ data Unique {A : Set} : List A → Set where
   uniq[]  : Unique []
   uniq::_ : ∀ {x xs} → x ∉ xs → Unique xs → Unique (x :: xs)
 
-infix 4 _⊆_
-_⊆_ : ∀ {A : Set} → List A → List A → Set
-xs ⊆ ys = All (λ x → x ∈ ys) xs
-
 -- If every element of a list satisfies P, then any specific member satisfies P.
 All-∈ :
   ∀ {A : Set} {P : A → Set} {x : A} {xs : List A}
@@ -129,6 +125,23 @@ All-∈ :
   → P x
 All-∈ (all::_ px _)  here       = px
 All-∈ (all::_ _ pxs) (there x∈)  = All-∈ pxs x∈
+
+All-map :
+    ∀ {A : Set} {P Q : A → Set} {xs : List A}
+  → (∀ {a} → P a → Q a)
+  → All P xs
+  → All Q xs
+All-map f all[] = all[]
+All-map f (all::_ p ps) = all::_ (f p) (All-map f ps)
+
+infix 4 _⊆_
+_⊆_ : ∀ {A : Set} → List A → List A → Set
+xs ⊆ ys = All (λ x → x ∈ ys) xs
+
+⊆-refl : ∀ {A : Set} {xs : List A} → xs ⊆ xs
+⊆-refl {xs = []} = all[]
+⊆-refl {xs = x :: xs} =
+  all::_ here (All-map there (⊆-refl {xs = xs}))
 ```
 
 ## Association-list utils (DSL-agnostic)
