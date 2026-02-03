@@ -200,13 +200,14 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
     items≡ items≡
     (⊑Co-refl wfItem)
 
-⊑Co-refl (wf-object ty≡ items≡ wfProps wfReq wfUniq) =
+⊑Co-refl (wf-object ty≡ items≡ wfProps wfReq wfUniq reqUniq) =
   ⊑-object
     -- objects refine when all old properties are preserved and refine
-    (wf-object ty≡ items≡ wfProps wfReq wfUniq)
-    (wf-object ty≡ items≡ wfProps wfReq wfUniq)
+    (wf-object ty≡ items≡ wfProps wfReq wfUniq reqUniq)
+    (wf-object ty≡ items≡ wfProps wfReq wfUniq reqUniq)
     ty≡ ty≡
     (PropsRefine-refl wfUniq wfProps)
+    ⊆-refl
 ```
 
 ---

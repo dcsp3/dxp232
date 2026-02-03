@@ -109,9 +109,8 @@ this rule is structurally well-defined.
 Objects are the main non-trivial case of schema refinement.
 
 In covariant positions (responses), refinement must preserve everything that existing
-clients might read. In particular, a client consuming an object may rely on any of its
-fields, including optional ones. Removing or changing such fields would therefore be
-breaking.
+clients might read. In particular, a client may read any field, but can only rely on presence
+for fields listed in `required`. Removing or changing such fields would therefore be breaking.
 
 For this reason, covariant object refinement enforces the following conditions:
 
@@ -121,6 +120,7 @@ be present in the new object.
 must itself refine covariantly.
 - Extensibility: the new object may introduce additional properties, which existing
 clients can safely ignore.
+- Preservation of requiredness: every required field in the old object remains required in the new object.
 
 These conditions are expressed using the auxiliary predicate `PropsRefine`, which states
 that all properties of one object are preserved and related by a given schema relation.
@@ -137,5 +137,6 @@ Using this predicate, covariant object refinement is defined as a constructor of
     → PropsRefine Schema⊑Co
        (Schema.properties s)
        (Schema.properties t)
+    → Schema.required s ⊆ Schema.required t
     → Schema⊑Co s t
 ```
