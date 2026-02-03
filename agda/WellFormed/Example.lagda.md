@@ -65,6 +65,7 @@ wf-TodoSchema =
     Todo-props-wf
     Todo-required-ok
     Todo-keys-unique
+    Todo-required-unique
   where
     Todo-props-wf :
       All (λ (k , sch) → WFSchema sch) (Schema.properties Todo)
@@ -83,6 +84,11 @@ wf-TodoSchema =
       uniq::_ (notin::_ id≢title notin[])
         (uniq::_ notin[] uniq[])
 
+    Todo-required-unique : Unique (Schema.required Todo)
+    Todo-required-unique =
+      uniq::_ (notin::_ id≢title notin[])
+        (uniq::_ notin[] uniq[])
+
 wf-ErrorSchema : WFSchema Error
 wf-ErrorSchema =
   wf-object
@@ -91,6 +97,7 @@ wf-ErrorSchema =
     Error-props-wf
     Error-required-ok
     Error-keys-unique
+    Error-required-unique
   where
     Error-props-wf :
       All (λ (k , sch) → WFSchema sch) (Schema.properties Error)
@@ -105,6 +112,10 @@ wf-ErrorSchema =
     Error-keys-unique : Unique (keys (Schema.properties Error))
     Error-keys-unique =
       uniq::_ notin[] uniq[]
+
+    Error-required-unique : Unique (Schema.required Error)
+    Error-required-unique =
+      uniq::_ notin[] uniq[]
 ```
 
 These proofs rely directly on the wf-object constructor and make explicit:
@@ -113,7 +124,8 @@ These proofs rely directly on the wf-object constructor and make explicit:
 - the absence of array items,
 - recursive well-formedness of property schemas,
 - coherence of required fields,
-- uniqueness of property keys (so properties behave like a finite map).
+- uniqueness of property keys (so properties behave like a finite map),
+- uniqueness of required names (so required behaves like a set of mandatory keys).
 
 In this example, inequality between distinct field names is assumed explicitly, since the core language does not provide a computational string inequality.
 
