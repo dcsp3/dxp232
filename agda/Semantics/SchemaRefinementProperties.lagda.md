@@ -352,26 +352,28 @@ PropsRefine-trans transCo
 
 ### 2.3 Transitivity of schema refinement
 
-Transitivity is proved by structural recursion on the first refinement witness. Primitive and array cases are immediate. The object case composes field-wise refinement using `PropsRefine-trans`, and composes the required-key condition using `⊆-trans`.
-
 ```agda
 ⊑Co-trans : ∀ {s t u} → Schema⊑Co s t → Schema⊑Co t u → Schema⊑Co s u
+```
 
+Transitivity is proved by structural recursion on the first refinement witness. Primitive and array cases are immediate. The object case composes field-wise refinement using `PropsRefine-trans`, and composes the required-key condition using `⊆-trans`.
+
+### Helper Lemmas
+
+```agda
 prim-not-array : IsPrimitive array → ⊥
 prim-not-array ()
 
 prim-not-object : IsPrimitive object → ⊥
 prim-not-object ()
 
-array≢object : array ≡ object → ⊥
-array≢object ()
+array-not-object : array ≡ object → ⊥
+array-not-object ()
+```
 
-object≢array : object ≡ array → ⊥
-object≢array ()
+### Primitive Cases
 
-
--- Primitive Cases
-
+```agda
 ⊑Co-trans
   (⊑-prim wfS wfT primS primT eqST)
   (⊑-prim wfT' wfU primT' primU eqTU)
@@ -389,8 +391,42 @@ object≢array ()
   (⊑-object wfT' wfU tyTObj tyUObj propsTU reqTU)
   =
     ⊥-elim (prim-not-object (subst IsPrimitive tyTObj primT))
-
-
-
-
 ```
+
+### Array Cases
+
+```agda
+⊑Co-trans
+  (⊑-array wfS wfT tySArr tyTArr itemsS itemsT relST)
+  (⊑-prim wfT' wfU primT primU eqTU)
+  =
+    ⊥-elim (prim-not-array (subst IsPrimitive tyTArr primT))
+  
+⊑Co-trans
+  (⊑-array wfS wfT tySArr tyTArr itemsS itemsT relST)
+  (⊑-object wfT' wfU tyTObj tyUObj propsTU reqTU)
+  = ⊥-elim (array-not-object (trans (sym tyTArr) tyTObj))
+
+⊑Co-trans
+  (⊑-array {si = si} {ti = ti} wfS wfT tySArr tyTArr itemsS itemsT relST)
+  (⊑-array {si = ti'} {ti = ui} wfT' wfU tyTArr' tyUArr itemsT' itemsU relTU)
+  = ⊑-array wfS wfU tySArr tyUArr itemsS itemsU relSU    
+
+      where
+      
+        -- Both proofs talk about Schema.items t; they may name the extracted schema differently.
+        -- itemsT : Schema.items t ≡ just ti
+        -- itemsT' : Schema.items t ≡ just ti'
+        ti≡ti' : ti ≡ ti'
+        ti≡ti' = just-inj (trans (sym itemsT) itemsT')
+
+        -- Rewrite relTU : Schema⊑Co ti' ui into Schema⊑Co ti ui.
+        relTU' : Schema⊑Co ti ui
+        relTU' = subst (λ x → Schema⊑Co x ui) (sym ti≡ti') relTU
+
+        -- Now compose item refinements.
+        relSU : Schema⊑Co si ui
+        relSU = ⊑Co-trans relST relTU'
+```
+
+### Object Cases
