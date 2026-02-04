@@ -30,6 +30,8 @@ Reflexivity states that every well-formed schema is a safe replacement for itsel
 ⊑Co-refl : ∀ {s} → WFSchema s → Schema⊑Co s s
 ```
 
+---
+
 We prove this by structural recursion on the well-formedness derivation. The primitive
 and array cases are straightforward. The object case requires a small helper lemma
 showing that each property can be looked up in its own property list, allowing us to
@@ -213,3 +215,82 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
 ---
 
 ## 2. Transitivity
+
+The refinement relation `Schema⊑Co` is intended to model safe evolution of schemas. Reflexivity already tells us that “no change” is always safe. The next structural property we need is transitivity:
+
+>If `s` safely refines `t`, and `t` safely refines `u`, then `s` safely refines `u`.
+
+This allows us to compress those step-by-step witnesses into a single compatibility guarantee for the whole change.
+
+We prove transitivity by structural recursion on the refinement witness.
+
+- For primitive schemas, transitivity reduces to transitivity of the underlying type equality.
+- For arrays, it reduces to transitivity of refinement on the item schema.
+- For objects, we must compose both field-wise refinement and the condition on required fields.
+
+Only the object case needs helper lemmas. Object refinement consists of a `PropsRefine Schema⊑Co` witness, ensuring every old field exists in the new object with a refining schema, together with a subset condition `required old ⊆ required new`, ensuring required keys may only grow.
+
+To compose object refinement, we therefore need transitivity of subset witnesses (`⊆-trans`) and a lemma that composes `PropsRefine` witnesses by transporting lookups across an intermediate property list.
+
+With these helpers in place, the main transitivity proof follows by direct structural recursion.
+
+---
+
+### 2.1 Transporting lookups across property refinement
+
+To compose object refinement witnesses, we must reason about individual fields.
+
+If a list of properties `ps` refines into `qs`, then every property appearing in `ps` must also appear in `qs` with a refining schema.
+In particular, if looking up a key `k` in `ps` succeeds, then looking up the same key in `qs` must also succeed, and the corresponding schemas must be related by `Schema⊑Co`.
+
+```agda
+just-inj : ∀ {A : Set} {x y : A} → just x ≡ just y → x ≡ y
+just-inj refl = refl
+
+-- If ps refines qs, then any successful lookup in ps
+-- corresponds to a successful lookup in qs, with a refinement witness.
+PropsRefine-respects-lookup :
+    ∀ {k s ps qs}
+  → PropsRefine Schema⊑Co ps qs
+  → lookupProp k ps ≡ just s
+  → ∃ (λ t → (lookupProp k qs ≡ just t) × (Schema⊑Co s t))
+
+-- ps = []: lookupProp k [] = nothing, so it can't be just s.
+PropsRefine-respects-lookup {ps = []} tt ()
+
+-- ps = (k0 , s0) :: ps'
+PropsRefine-respects-lookup
+  {k = k} {s = s} {ps = (k0 , s0) :: ps'} {qs = qs}
+  ((t0 , (lkHead , refHead)) , refTail)
+  lk
+  with k ≟ k0
+
+... | yes k≡k0 = result
+  where
+    -- In this branch, the lookup key matches the head key.
+    -- So lookupProp k ps returning just s really means the head schema is s.
+    s0≡s : s0 ≡ s
+    s0≡s = just-inj lk
+
+    -- lkHead talks about key k0; rewrite it to key k using k≡k0.
+    lkHead' : lookupProp k qs ≡ just t0
+    lkHead' = subst (λ x → lookupProp x qs ≡ just t0) (sym k≡k0) lkHead
+
+    -- refHead is for s0; rewrite it to be for s using s0≡s.
+    refHead' : Schema⊑Co s t0
+    refHead' = subst (λ x → Schema⊑Co x t0) s0≡s refHead
+
+    -- Return the matching schema t0 from qs, plus the two facts we just built.
+    result : ∃ (λ t → (lookupProp k qs ≡ just t) × (Schema⊑Co s t))
+    result = (t0 , (lkHead' , refHead'))
+
+... | no k≢k0 =
+  -- Keys differ, so lookupProp skips the head.
+  -- Agda has already reduced lk to a tail-lookup fact, so we can recurse directly.
+  PropsRefine-respects-lookup
+    {k = k} {s = s} {ps = ps'} {qs = qs}
+    refTail
+    lk
+```
+
+### 2.2
