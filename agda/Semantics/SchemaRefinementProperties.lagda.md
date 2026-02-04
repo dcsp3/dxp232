@@ -27,12 +27,11 @@ open Σ using (fst ; snd)
 
 Reflexivity states that every well-formed schema is a safe replacement for itself.
 
+
 ```agda
 -- todo: cleanup code and explanations
 ⊑Co-refl : ∀ {s} → WFSchema s → Schema⊑Co s s
 ```
-
----
 
 We prove this by structural recursion on the well-formedness derivation. The primitive
 and array cases are straightforward. The object case requires a small helper lemma
@@ -352,11 +351,16 @@ PropsRefine-trans transCo
 
 ### 2.3 Transitivity of schema refinement
 
+
+Transitivity is proved by structural recursion on the first refinement witness. Primitive and array cases are immediate. The object case composes field-wise refinement using `PropsRefine-trans`, and composes the required-key condition using `⊆-trans`.
+
 ```agda
+-- Termination is structural; Agda can't see it through PropsRefine-trans.
+{-# TERMINATING #-}
+
 ⊑Co-trans : ∀ {s t u} → Schema⊑Co s t → Schema⊑Co t u → Schema⊑Co s u
 ```
 
-Transitivity is proved by structural recursion on the first refinement witness. Primitive and array cases are immediate. The object case composes field-wise refinement using `PropsRefine-trans`, and composes the required-key condition using `⊆-trans`.
 
 ### Helper Lemmas
 
@@ -405,15 +409,16 @@ array-not-object ()
 ⊑Co-trans
   (⊑-array wfS wfT tySArr tyTArr itemsS itemsT relST)
   (⊑-object wfT' wfU tyTObj tyUObj propsTU reqTU)
-  = ⊥-elim (array-not-object (trans (sym tyTArr) tyTObj))
+  =
+    ⊥-elim (array-not-object (trans (sym tyTArr) tyTObj))
 
 ⊑Co-trans
   (⊑-array {si = si} {ti = ti} wfS wfT tySArr tyTArr itemsS itemsT relST)
   (⊑-array {si = ti'} {ti = ui} wfT' wfU tyTArr' tyUArr itemsT' itemsU relTU)
-  = ⊑-array wfS wfU tySArr tyUArr itemsS itemsU relSU    
+  = 
+    ⊑-array wfS wfU tySArr tyUArr itemsS itemsU relSU    
 
       where
-      
         -- Both proofs talk about Schema.items t; they may name the extracted schema differently.
         -- itemsT : Schema.items t ≡ just ti
         -- itemsT' : Schema.items t ≡ just ti'
@@ -430,3 +435,24 @@ array-not-object ()
 ```
 
 ### Object Cases
+
+```agda
+⊑Co-trans
+  (⊑-object wfS wfT tySObj tyTObj propsST reqST)
+  (⊑-prim wfT' wfU primT primU eqTU)
+  =
+    ⊥-elim (prim-not-object (subst IsPrimitive tyTObj primT))
+
+⊑Co-trans
+  (⊑-object wfS wfT tySObj tyTObj propsST reqST)
+  (⊑-array wfT' wfU tyTArr tyUArr itT itU relTU)
+  =
+    ⊥-elim (array-not-object (trans (sym tyTArr) tyTObj))
+
+
+⊑Co-trans
+  (⊑-object wfS wfT tySObj tyTObj propsST reqST)
+  (⊑-object wfT' wfU tyTObj' tyUObj propsTU reqTU)
+  =
+    ⊑-object wfS wfU tySObj tyUObj (PropsRefine-trans ⊑Co-trans propsST propsTU) (⊆-trans reqST reqTU)
+```
