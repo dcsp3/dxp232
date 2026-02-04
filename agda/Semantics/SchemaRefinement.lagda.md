@@ -55,6 +55,8 @@ With these definitions in place, we can now define covariant schema refinement i
 data Schema⊑Co : Schema → Schema → Set where
 ```
 
+---
+
 ## 2. Refinement rules
 
 ### 2.1 Primitive schemas
@@ -139,4 +141,21 @@ Using this predicate, covariant object refinement is defined as a constructor of
        (Schema.properties t)
     → Schema.required s ⊆ Schema.required t
     → Schema⊑Co s t
+```
+
+---
+
+## 3. Variance-aware schema refinement
+
+Now that we have defined schema refinement in one direction, we can recover full notion using variance.
+
+- For covariant positions (such as responses), refinement is exactly `Schema⊑Co`.
+- For contravariant positions (such as requests), refinement is obtained by reversing the direction.
+
+We capture this with a simple variance-indexed wrapper.
+
+```agda
+Schema⊑ : Variance → Schema → Schema → Set
+Schema⊑ Co     old new = Schema⊑Co old new
+Schema⊑ Contra old new = Schema⊑Co new old
 ```
