@@ -27,7 +27,6 @@ open Σ using (fst ; snd)
 
 Reflexivity states that every well-formed schema is a safe replacement for itself.
 
-
 ```agda
 -- todo: cleanup code and explanations
 ⊑Co-refl : ∀ {s} → WFSchema s → Schema⊑Co s s
@@ -37,7 +36,6 @@ We prove this by structural recursion on the well-formedness derivation. The pri
 and array cases are straightforward. The object case requires a small helper lemma
 showing that each property can be looked up in its own property list, allowing us to
 build the `PropsRefine` witness.
-
 
 ### 1.1 Lookup helpers
 
@@ -355,12 +353,13 @@ PropsRefine-trans transCo
 Transitivity is proved by structural recursion on the first refinement witness. Primitive and array cases are immediate. The object case composes field-wise refinement using `PropsRefine-trans`, and composes the required-key condition using `⊆-trans`.
 
 ```agda
--- Termination is structural; Agda can't see it through PropsRefine-trans.
+-- Agda can’t see that recursion decreases on the first witness because
+-- the recursive call is passed as an argument to PropsRefine-trans.
+
 {-# TERMINATING #-}
 
 ⊑Co-trans : ∀ {s t u} → Schema⊑Co s t → Schema⊑Co t u → Schema⊑Co s u
 ```
-
 
 ### Helper Lemmas
 
@@ -456,3 +455,32 @@ array-not-object ()
   =
     ⊑-object wfS wfU tySObj tyUObj (PropsRefine-trans ⊑Co-trans propsST propsTU) (⊆-trans reqST reqTU)
 ```
+
+---
+
+## 3. Schema refinement as a preorder
+
+So far, we have shown that schema refinement is reflexive and transitive. One caveat is that reflexivity only holds for well-formed schemas, since the proof `⊑Co-refl` requires a `WFSchema` witness.
+
+For this reason, we cannot define the preorder over raw schemas. Instead, we take the carrier to be the type of well-formed schemas: a schema paired with a proof that it is well-formed. We then lift `Schema⊑Co` to act on these pairs, ignoring the proof component.
+
+With this choice of carrier, schema refinement satisfies the axioms of a preorder.
+
+```agda
+-- a schema packaged together with a proof that it is well-formed
+WFSchemaₛ : Set
+WFSchemaₛ = Σ Schema WFSchema
+
+-- lift Schema⊑Co to well-formed schemas
+_⊑CoWF_ : WFSchemaₛ → WFSchemaₛ → Set
+(s , wfS) ⊑CoWF (t , wfT) = Schema⊑Co s t
+
+Schema⊑Co-preorder : IsPreorder _⊑CoWF_
+Schema⊑Co-preorder = record
+  { reflexive  = λ { {x = (s , wfS)} → ⊑Co-refl wfS }
+  ; transitive = λ { {x = (s , _)} {y = (t , _)} {z = (u , _)} st tu →
+                      ⊑Co-trans st tu }
+  }
+```
+
+This result lets us treat schema refinement as a preorder structure in later semantic arguments, without repeatedly unpacking the underlying reflexivity and transitivity proofs.
