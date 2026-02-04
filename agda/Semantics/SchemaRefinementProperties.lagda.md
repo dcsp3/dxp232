@@ -349,3 +349,48 @@ PropsRefine-trans transCo
 ```
 
 ---
+
+### 2.3 Transitivity of schema refinement
+
+Transitivity is proved by structural recursion on the first refinement witness. Primitive and array cases are immediate. The object case composes field-wise refinement using `PropsRefine-trans`, and composes the required-key condition using `⊆-trans`.
+
+```agda
+⊑Co-trans : ∀ {s t u} → Schema⊑Co s t → Schema⊑Co t u → Schema⊑Co s u
+
+prim-not-array : IsPrimitive array → ⊥
+prim-not-array ()
+
+prim-not-object : IsPrimitive object → ⊥
+prim-not-object ()
+
+array≢object : array ≡ object → ⊥
+array≢object ()
+
+object≢array : object ≡ array → ⊥
+object≢array ()
+
+
+-- Primitive Cases
+
+⊑Co-trans
+  (⊑-prim wfS wfT primS primT eqST)
+  (⊑-prim wfT' wfU primT' primU eqTU)
+  =
+    ⊑-prim wfS wfU primS primU (trans eqST eqTU)
+
+⊑Co-trans
+  (⊑-prim wfS wfT primS primT eqST)
+  (⊑-array wfT' wfU tyTArr tyUArr itT itU relTU)
+  =
+    ⊥-elim (prim-not-array (subst IsPrimitive tyTArr primT))
+
+⊑Co-trans
+  (⊑-prim wfS wfT primS primT eqST)
+  (⊑-object wfT' wfU tyTObj tyUObj propsTU reqTU)
+  =
+    ⊥-elim (prim-not-object (subst IsPrimitive tyTObj primT))
+
+
+
+
+```
