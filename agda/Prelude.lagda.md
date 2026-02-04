@@ -142,6 +142,10 @@ xs ⊆ ys = All (λ x → x ∈ ys) xs
 ⊆-refl {xs = []} = all[]
 ⊆-refl {xs = x :: xs} =
   all::_ here (All-map there (⊆-refl {xs = xs}))
+
+⊆-trans : ∀ {A : Set} {xs ys zs : List A} → xs ⊆ ys → ys ⊆ zs → xs ⊆ zs
+⊆-trans xs⊆ys ys⊆zs =
+  All-map (λ {x} x∈ys → All-∈ ys⊆zs x∈ys) xs⊆ys
 ```
 
 ## Association-list utils (DSL-agnostic)
