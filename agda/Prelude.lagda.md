@@ -155,3 +155,12 @@ keys : ∀ {A : Set} → List (String × A) → List String
 keys [] = []
 keys ((k , _) :: rest) = k :: keys rest
 ```
+
+## Preorder
+
+```agda
+record IsPreorder {A : Set} (_≤_ : A → A → Set) : Set where
+  field
+    reflexive  : ∀ {x} → _≤_ x x
+    transitive : ∀ {x y z} → _≤_ x y → _≤_ y z → _≤_ x z
+```
