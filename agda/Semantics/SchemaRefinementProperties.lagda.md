@@ -19,6 +19,8 @@ open import Syntax
 open import WellFormed.Core
 
 open import Semantics.SchemaRefinement
+
+open Σ using (fst ; snd)
 ```
 
 ## 1. Reflexivity
@@ -72,6 +74,8 @@ lookupProp-insert-after-head {x} {k0} {s0} {k} {s} {target} x≢k with x ≟ k0
 ... | yes _ = refl
 ... | no  _ = lookupProp-skip {k = x} {k' = k} {s = s} {ps = target} x≢k
 ```
+
+---
 
 ### 1.2 Reflexivity for property refinement
 
@@ -183,6 +187,8 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
       rest
 ```
 
+---
+
 ### 1.3 Main Reflexivity Lemma
 
 ```agda
@@ -293,4 +299,53 @@ PropsRefine-respects-lookup
     lk
 ```
 
-### 2.2
+---
+
+### 2.2 Composing property refinement witnesses
+
+Transitivity for objects needs us to chain field-wise refinement across an intermediate property list.
+
+If `ps` refines `qs`, and `qs` refines `rs`, then `ps` refines `rs`. For each field in `ps`, we first use the `ps → qs` witness to find the matching field in `qs`, then use 2.1 to push that same lookup through the `qs → rs` witness, and finally compose the two schema refinements.
+
+```agda
+-- If ps refines qs and qs refines rs, then ps refines rs.
+--
+-- Parameterised by transitivity of Schema⊑Co so we can use this lemma
+-- while proving ⊑Co-trans itself.
+PropsRefine-trans :
+    (transCo : ∀ {a b c} → Schema⊑Co a b → Schema⊑Co b c → Schema⊑Co a c)
+  → ∀ {ps qs rs}
+  → PropsRefine Schema⊑Co ps qs
+  → PropsRefine Schema⊑Co qs rs
+  → PropsRefine Schema⊑Co ps rs
+
+-- No fields: nothing to do.
+PropsRefine-trans transCo {ps = []} tt _ = tt
+
+-- One field + tail: build the head witness, then recurse.
+PropsRefine-trans transCo
+  {ps = (k0 , s0) :: ps'} {qs = qs} {rs = rs}
+  ((t0 , (lk0 , ref0)) , restPQ)
+  refQR
+  =
+    (u0 , (lkU , refHead)) , PropsRefine-trans transCo restPQ refQR
+  where
+    pushed :
+      Σ Schema (λ u → (lookupProp k0 rs ≡ just u) × (Schema⊑Co t0 u))
+    pushed = PropsRefine-respects-lookup refQR lk0
+
+    u0 : Schema
+    u0 = fst pushed
+
+    lkU : lookupProp k0 rs ≡ just u0
+    lkU = fst (snd pushed)
+
+    refTU : Schema⊑Co t0 u0
+    refTU = snd (snd pushed)
+
+    -- Compose refinements: s0 ⊑ t0 and t0 ⊑ u0 gives s0 ⊑ u0.
+    refHead : Schema⊑Co s0 u0
+    refHead = transCo ref0 refTU
+```
+
+---
