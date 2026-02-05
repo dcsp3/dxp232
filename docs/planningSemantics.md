@@ -19,7 +19,7 @@ This is what will let us classify changes as safe or breaking in a way that supp
 
 ### Why Equality Is Not Enough
 
-In our earlier [naive approach](./naiveSemantics.md) to compatibility, we treated two specifications as compatible when they are structurally equal (or equal up to reordering). While that’s a useful starting point, it doesn’t model real API evolution.
+In our earlier [naive approach](./oldSemantics.md) to compatibility, we treated two specifications as compatible when they are structurally equal (or equal up to reordering). While that’s a useful starting point, it doesn’t model real API evolution.
 
 For example, some safe changes can be:
 - adding an optional field to a response object (clients can ignore it),
