@@ -1,4 +1,4 @@
-# Semantics
+# Older Naive Semantics
 
 In this file, I try define a *semantic* notion of compatibility between two REST endpoints
 and formally prove what I call the **Drift Theorem**, which states that:
@@ -7,7 +7,7 @@ and formally prove what I call the **Drift Theorem**, which states that:
 > then those endpoints cannot be semantically compatible."
 
 
-```agda
+```
 module Semantics where
 
 open import Prelude
@@ -19,7 +19,7 @@ This function interprets a syntactic list of `(Status, Schema)` pairs as a seman
 
 It is used to reason about how a client and server “see” the meaning of an endpoint.
 
-```agda
+```
 lookup : Status → List RespCase → Maybe Schema
 lookup OK []                            = nothing
 lookup OK (Case OK x :: xs)             = just x
@@ -44,7 +44,7 @@ Two endpoints are **Compatible** if:
 
 This captures the idea that client and server *agree* on structure and behaviour.
 
-```agda
+```
 Compatible : Endpoint → Endpoint → Set
 Compatible client server = methods-equal × response-equal
   where
@@ -75,7 +75,7 @@ We define `DriftWitness` as the data structure that records *where* this disagre
 
 Each constructor corresponds to a distinct kind of mismatch.
 
-```agda
+```
 data DriftWitness (c s : Endpoint) : Set where
   MethodDrift :
     Endpoint.method c ≢ Endpoint.method s →
@@ -109,7 +109,7 @@ Interpretation:
 - `MismatchAt` - Both define a response for the same status, but with different schemas
 
 ## Utils and lemmas
-```agda
+```
 sym : ∀ {A : Set}{x y : A} → x ≡ y → y ≡ x
 sym refl = refl
 
@@ -129,7 +129,7 @@ just≠nothing ()
 ## Drift Theorem
 Any syntactic witness of drift guarantees that the two endpoints are not semantically compatible.
 
-```agda
+```
 drift-theorem : ∀ {client server} → DriftWitness client server → ¬ Compatible client server
 ```
 
@@ -137,7 +137,7 @@ drift-theorem : ∀ {client server} → DriftWitness client server → ¬ Compat
 
 Methods differ, but compatibility asserts equality.
 
-```agda
+```
 drift-theorem {client} {server}
   (MethodDrift methods-not-equal)
   (methods-equal , _) =
@@ -148,7 +148,7 @@ drift-theorem {client} {server}
 
 Server defines a response the client lacks.
 
-```agda
+```
 drift-theorem {client} {server}
   (MissingOnL st sc lcN lsJ)
   (_ , allEq) =
@@ -166,7 +166,7 @@ drift-theorem {client} {server}
 
 Client defines a response the server lacks.
 
-```agda
+```
 drift-theorem {client} {server}
   (MissingOnR st sc lcJ lsN)
   (_ , allEq) =
@@ -184,7 +184,7 @@ drift-theorem {client} {server}
 
 Client and server define the same status with different schemas.
 
-```agda
+```
 drift-theorem {client} {server}
   (MismatchAt st sc ss lcJ lsJ neq)
   (_ , allEq) =
@@ -202,7 +202,7 @@ drift-theorem {client} {server}
 
 First we define some trivial lemmas we can use later
 
-```agda
+```
 get-is-not-post : GET ≢ POST
 get-is-not-post ()
 
@@ -212,7 +212,7 @@ todo-is-not-error ()
 
 ### Example 1: MethodDrift
 
-```agda
+```
 ClientGET : Endpoint
 ClientGET = record
   { path = "/todos"
@@ -238,7 +238,7 @@ methodDriftExample = drift-theorem methodDrift
 
 ### Example 2: MissingOnL
 
-```agda
+```
 ClientMinimal : Endpoint
 ClientMinimal = record
   { path = "/todos"
@@ -264,7 +264,7 @@ missingOnLExample = drift-theorem missingOnL
 
 ### Example 3: MissingOnR
 
-```agda
+```
 ClientExpecting404 : Endpoint
 ClientExpecting404 = record
   { path = "/todos"
@@ -291,7 +291,7 @@ missingOnRExample = drift-theorem missingOnR
 ### Example 4: MismatchAt
 
 
-```agda
+```
 ClientOKTodo : Endpoint
 ClientOKTodo  = record
   { path = "/todos"

@@ -19,7 +19,7 @@ This is what will let us classify changes as safe or breaking in a way that supp
 
 ### Why Equality Is Not Enough
 
-In our earlier naive approach to compatibility, we treated two specifications as compatible when they are structurally equal (or equal up to reordering). While that’s a useful starting point, it doesn’t model real API evolution.
+In our earlier [naive approach](./naiveSemantics.md) to compatibility, we treated two specifications as compatible when they are structurally equal (or equal up to reordering). While that’s a useful starting point, it doesn’t model real API evolution.
 
 For example, some safe changes can be:
 - adding an optional field to a response object (clients can ignore it),
@@ -40,7 +40,7 @@ The key observation is that requests and responses behave differently under evol
 - Responses are produced by the server and consumed by the client.
 - Requests are produced by the client and consumed by the server.
 
-So “safe evolution” depends on *who* is observing the change. We can capture this using [variance](https://learn.microsoft.com/en-us/dotnet/standard/generics/covariance-and-contravariance):
+So “safe evolution” depends on *who* is observing the change. We can capture this using [variance](./variance.md):
 
 ```agda
 data Variance : Set where
