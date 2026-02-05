@@ -78,7 +78,7 @@
 
 ---
 
-# Week 1 (20/1)
+## Week 1 (20/1)
 
 - Explained the idea of well-formedness, why I defined it and how it sits between syntax and semantics
 - Discussed how semantics should only apply to well-formed APIs
@@ -88,5 +88,22 @@
 - Compatibility = existence of a sequence of valid steps from API A to API B (transitive closure)
 - Leads naturally to a rule-based notion of API evolution
 - Would be helpful to write a document and create a plan for semantics
+
+---
+
+## Week 2 (27/1)
+
+No meeting
+
+---
+
+## Week 3 (3/2)
+
+- Updated on progress with [schema refinement](../agda/Semantics/SchemaRefinement.lagda.md) and current proof structure
+- Current refinement relation essentially a big-step view of compatibility (directly relating old and new schemas, rather than via intermediate steps)
+- Discussed the need for small, concrete examples of breaking or incompatible changes
+- Idea to define explicit schema transformation functions for breaking changes and prove they produce incompatibility under the refinement relation
+- Plan to come up with a clear list of things to prove going forward
+- Deeper dive into the Agda code next meeting
 
 ---
