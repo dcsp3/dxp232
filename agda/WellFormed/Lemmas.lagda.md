@@ -17,18 +17,17 @@ module WellFormed.Lemmas where
 open import Prelude
 open import Syntax
 open import WellFormed.Core
-open import ExampleTodoAPI
 ```
 
 ## 1. Inversion Lemmas for Totality
 
-Once later definitions are restricted to well-formed specifications, we repeatedly want to recover the structural facts that well-formedness guarantees. In practice, this is done by pattern matching on a well-formedness derivations or by using small “inversion” lemmas like the ones below.
+Once later definitions are restricted to well-formed specifications, we repeatedly want to recover the structural facts that well-formedness guarantees. In practice, this is done by pattern matching on well-formedness derivations or by using small “inversion” lemmas like the ones below.
 
 These lemmas justify total semantic definitions by eliminating impossible cases. In particular, we focus on inversion lemmas for `WFSchema`, since schema structure is the primary source of partiality in later definitions. Other well-formedness judgements are consumed directly by pattern matching at their point of use.
 
 ### 1.1 Arrays have an item schema
 
-Array schemas are the simplest source of partiality in the OpenAPI schema model: an array type is only meaningful if an element schema is present. While the syntax allows the `items` field to be absent, well-formedness rules this out for array schemas.
+Array schemas are the simplest source of partiality in our schema model: an array type is only meaningful if an element schema is present. While the syntax allows the `items` field to be absent, well-formedness rules this out for array schemas.
 
 The following inversion lemma makes this guarantee explicit. It shows that for any well-formed schema whose type is `array`, an item schema must exist and is itself well-formed. This fact is later used to define array semantics and refinement relations by total recursion on the item schema.
 
@@ -56,7 +55,7 @@ array-inv (wf-array _ items≡just wf-it _ _) _ =
     }
 
 -- Object schemas cannot have array type.
-array-inv (wf-object tyObj _ _ _) tyArr =
+array-inv (wf-object tyObj _ _ _ _ _) tyArr =
   ⊥-elim (object≢array (trans (sym tyObj) tyArr))
 
 -- Primitive schemas cannot have array type.
@@ -70,14 +69,16 @@ This lemma ensures that semantic interpretations of arrays never need to handle 
 
 Object schemas are the most structurally rich case in our subset: they carry named properties and a list of required fields that must be scoped to those properties. Later semantic and compatibility definitions rely on these invariants when interpreting or comparing object-shaped payloads.
 
-The following inversion lemma extracts the exact guarantees provided by well-formedness for object schemas: object schemas have no array items, all property schemas are themselves well-formed, and every required field name corresponds to a declared property key.
+The following inversion lemma extracts the exact guarantees provided by well-formedness for object schemas: object schemas have no array items, all property schemas are themselves well-formed, and every required field name corresponds to a declared property key. Additionally, object schemas have unique property keys and a duplicate-free `required` list, so `properties` behaves like a finite map (unique keys), and `required` behaves like a finite set (no duplicates), rather than order-sensitive lists.
 
 ```agda
 record ObjectInv (s : Schema) : Set where
   field
     noItems : Schema.items s ≡ nothing
-    propsWF : All (λ kv → WFSchema (snd kv)) (Schema.properties s)
+    propsWF : All (λ (k , sch) → WFSchema sch) (Schema.properties s)
     reqWF   : All (λ r → r ∈ keys (Schema.properties s)) (Schema.required s)
+    uniqKeys : Unique (keys (Schema.properties s))
+    uniqReq  : Unique (Schema.required s)
 
 array≢object : array ≡ object → ⊥
 array≢object ()
@@ -92,11 +93,13 @@ object-inv :
   → ObjectInv s
 
 -- Object case: all coherence facts are carried by the WF proof.
-object-inv (wf-object _ noItems propsWF reqWF) _ =
+object-inv (wf-object _ noItems propsWF reqWF uniqK uniqR) _ =
   record
-    { noItems = noItems
-    ; propsWF = propsWF
-    ; reqWF   = reqWF
+    { noItems  = noItems
+    ; propsWF  = propsWF
+    ; reqWF    = reqWF
+    ; uniqKeys = uniqK
+    ; uniqReq  = uniqR 
     }
 
 -- Array schemas cannot have object type.

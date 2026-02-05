@@ -25,18 +25,23 @@ data List (A : Set) : Set where
 
 infixr 10 _::_
 
-data _×_ (A B : Set) : Set where
-  _,_ : A → B → A × B
-
-fst : ∀ {A B : Set} → A × B → A
-fst (a , b) = a
-
-snd : ∀ {A B : Set} → A × B → B
-snd (a , b) = b
-
 data Maybe (A : Set) : Set where
   nothing : Maybe A
   just    : A → Maybe A
+
+record Σ (A : Set) (B : A → Set) : Set where
+  constructor _,_
+  field
+    fst : A
+    snd : B fst
+
+_×_ : Set → Set → Set
+A × B = Σ A (λ _ → B)
+
+infixr 2 _×_
+
+∃ : ∀ {A : Set} → (A → Set) → Set
+∃ {A} P = Σ A P
 ```
 
 ## Equality and basic logic
@@ -45,6 +50,9 @@ data Maybe (A : Set) : Set where
 data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x
 
+data ⊤ : Set where
+  tt : ⊤
+
 data ⊥ : Set where
 
 ¬_ : Set → Set
@@ -52,6 +60,13 @@ data ⊥ : Set where
 
 _≢_ : ∀ {A : Set} → A → A → Set
 x ≢ y = ¬ (x ≡ y)
+
+data Dec (P : Set) : Set where
+  yes : P → Dec P
+  no  : (¬ P) → Dec P
+
+postulate
+  _≟_ : (x y : String) → Dec (x ≡ y)
 ```
 
 ## Equality Utilities
@@ -85,10 +100,22 @@ data _∈_ {A : Set} : A → List A → Set where
   here  : ∀ {x xs} → x ∈ (x :: xs)
   there : ∀ {x y xs} → x ∈ xs → x ∈ (y :: xs)
 
-infix 4 _⊆_
-_⊆_ : ∀ {A : Set} → List A → List A → Set
-xs ⊆ ys = All (λ x → x ∈ ys) xs
+data _∉_ {A : Set} (x : A) : List A → Set where
+  notin[]  : x ∉ []
+  notin::_ : ∀ {y ys} → x ≢ y → x ∉ ys → x ∉ (y :: ys)
 
+∉-elim :
+  ∀ {A : Set} {x : A} {xs : List A}
+  → x ∉ xs
+  → x ∈ xs
+  → ⊥
+∉-elim notin[] ()
+∉-elim (notin::_ x≢y x∉ys) here        = x≢y refl
+∉-elim (notin::_ _   x∉ys) (there x∈)  = ∉-elim x∉ys x∈
+
+data Unique {A : Set} : List A → Set where
+  uniq[]  : Unique []
+  uniq::_ : ∀ {x xs} → x ∉ xs → Unique xs → Unique (x :: xs)
 
 -- If every element of a list satisfies P, then any specific member satisfies P.
 All-∈ :
@@ -98,6 +125,27 @@ All-∈ :
   → P x
 All-∈ (all::_ px _)  here       = px
 All-∈ (all::_ _ pxs) (there x∈)  = All-∈ pxs x∈
+
+All-map :
+    ∀ {A : Set} {P Q : A → Set} {xs : List A}
+  → (∀ {a} → P a → Q a)
+  → All P xs
+  → All Q xs
+All-map f all[] = all[]
+All-map f (all::_ p ps) = all::_ (f p) (All-map f ps)
+
+infix 4 _⊆_
+_⊆_ : ∀ {A : Set} → List A → List A → Set
+xs ⊆ ys = All (λ x → x ∈ ys) xs
+
+⊆-refl : ∀ {A : Set} {xs : List A} → xs ⊆ xs
+⊆-refl {xs = []} = all[]
+⊆-refl {xs = x :: xs} =
+  all::_ here (All-map there (⊆-refl {xs = xs}))
+
+⊆-trans : ∀ {A : Set} {xs ys zs : List A} → xs ⊆ ys → ys ⊆ zs → xs ⊆ zs
+⊆-trans xs⊆ys ys⊆zs =
+  All-map (λ {x} x∈ys → All-∈ ys⊆zs x∈ys) xs⊆ys
 ```
 
 ## Association-list utils (DSL-agnostic)
@@ -105,5 +153,14 @@ All-∈ (all::_ _ pxs) (there x∈)  = All-∈ pxs x∈
 ```agda
 keys : ∀ {A : Set} → List (String × A) → List String
 keys [] = []
-keys (kv :: rest) = fst kv :: keys rest
+keys ((k , _) :: rest) = k :: keys rest
+```
+
+## Preorder
+
+```agda
+record IsPreorder {A : Set} (_≤_ : A → A → Set) : Set where
+  field
+    reflexive  : ∀ {x} → _≤_ x x
+    transitive : ∀ {x y z} → _≤_ x y → _≤_ y z → _≤_ x z
 ```

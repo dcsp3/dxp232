@@ -33,7 +33,7 @@ A `Schema` in our syntax is a single record that contains fields for all schema 
 That’s great for expressing OpenAPI-like documents, but it permits contradictory combinations.
 
 `WFSchema s` enforces shape coherence only:
-- If `type = object`, then `items` must be absent, and the object’s fields must themselves be well-formed.
+- If `type = object`, then `items` must be absent, all field schemas must themselves be well-formed, property names must be unique, and the required list must refer only to existing properties (and contain no duplicates).
 - If `type = array`, then `items` must be present, and object-specific fields must be empty.
 - If `type` is primitive, then both array/object fields must be empty.
 
@@ -52,8 +52,10 @@ data WFSchema : Schema → Set where
     ∀ {s}
     → Schema.type s ≡ object
     → Schema.items s ≡ nothing
-    → All (λ kv → WFSchema (snd kv)) (Schema.properties s)
+    → All (λ { (k , sch) → WFSchema sch }) (Schema.properties s)
     → All (λ r → r ∈ keys (Schema.properties s)) (Schema.required s)
+    → Unique (keys (Schema.properties s))
+    → Unique (Schema.required s)
     → WFSchema s
 
   wf-array :
@@ -218,7 +220,7 @@ An `API` specification bundles together reusable component schemas and the colle
 data WFAPI : API → Set where
   wf-api :
     ∀ {api}
-    → All (λ kv → WFSchema (snd kv)) (API.components api)
+    → All (λ { (_ , sch) → WFSchema sch }) (API.components api)
     → All WFEndpoint (API.paths api)
     → WFAPI api
 ```
