@@ -68,7 +68,7 @@ wf-TodoSchema =
     Todo-required-unique
   where
     Todo-props-wf :
-      All (λ (k , sch) → WFSchema sch) (Schema.properties Todo)
+      All WFSchema (values (Schema.properties Todo))
     Todo-props-wf =
       all::_ wf-IdSchema
         (all::_ wf-TitleSchema all[])
@@ -100,7 +100,7 @@ wf-ErrorSchema =
     Error-required-unique
   where
     Error-props-wf :
-      All (λ (k , sch) → WFSchema sch) (Schema.properties Error)
+      All WFSchema (values (Schema.properties Error))
     Error-props-wf =
       all::_ wf-MessageSchema all[]
 
@@ -209,7 +209,7 @@ wf-TodoAPI =
     (all::_ wf-GetTodoEndpoint all[])
   where
     wf-components :
-      All (λ (k , sch) → WFSchema sch) (API.components TodoAPI)
+      All WFSchema (values (API.components TodoAPI))
     wf-components =
       all::_ wf-TodoSchema
         (all::_ wf-ErrorSchema all[])

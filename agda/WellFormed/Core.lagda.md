@@ -52,8 +52,8 @@ data WFSchema : Schema → Set where
     ∀ {s}
     → Schema.type s ≡ object
     → Schema.items s ≡ nothing
-    → All (λ { (k , sch) → WFSchema sch }) (Schema.properties s)
-    → All (λ r → r ∈ keys (Schema.properties s)) (Schema.required s)
+    → All WFSchema (values (Schema.properties s))
+    → All (λ k → k ∈ keys (Schema.properties s)) (Schema.required s)
     → Unique (keys (Schema.properties s))
     → Unique (Schema.required s)
     → WFSchema s
@@ -220,7 +220,7 @@ An `API` specification bundles together reusable component schemas and the colle
 data WFAPI : API → Set where
   wf-api :
     ∀ {api}
-    → All (λ { (_ , sch) → WFSchema sch }) (API.components api)
+    → All WFSchema (values (API.components api))
     → All WFEndpoint (API.paths api)
     → WFAPI api
 ```

@@ -148,12 +148,16 @@ xs ⊆ ys = All (λ x → x ∈ ys) xs
   All-map (λ {x} x∈ys → All-∈ ys⊆zs x∈ys) xs⊆ys
 ```
 
-## Association-list utils (DSL-agnostic)
+## Association-list utils
 
 ```agda
 keys : ∀ {A : Set} → List (String × A) → List String
 keys [] = []
 keys ((k , _) :: rest) = k :: keys rest
+
+values : ∀ {A B : Set} → List (A × B) → List B
+values [] = []
+values ((_ , v) :: rest) = v :: values rest
 ```
 
 ## Preorder

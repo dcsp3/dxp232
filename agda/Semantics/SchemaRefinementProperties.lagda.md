@@ -137,10 +137,10 @@ PropsRefine-tail :
   → WFSchema sch
   → Unique (keys ps)
   → k ∉ keys ps
-  → All (λ { (_ , s) → WFSchema s }) ps
+  → All WFSchema (values ps)
   → PropsRefine Schema⊑Co ps ((k , sch) :: ps)
 
-PropsRefine-tail wfSch uniq notin[] all[] = tt
+PropsRefine-tail {ps = []} wfSch uniq notin all = tt
 
 PropsRefine-tail {k} {sch} {ps = (k' , sch') :: ps'}
   wfSch
@@ -163,7 +163,7 @@ PropsRefine-tail {k} {sch} {ps = (k' , sch') :: ps'}
 PropsRefine-refl :
     ∀ {ps}
   → Unique (keys ps)
-  → All (λ { (_ , s) → WFSchema s }) ps
+  → All WFSchema (values ps)
   → PropsRefine Schema⊑Co ps ps
 PropsRefine-refl {ps = []} uniq all = tt
 
