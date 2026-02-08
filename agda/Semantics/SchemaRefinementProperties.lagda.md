@@ -247,9 +247,6 @@ If a list of properties `ps` refines into `qs`, then every property appearing in
 In particular, if looking up a key `k` in `ps` succeeds, then looking up the same key in `qs` must also succeed, and the corresponding schemas must be related by `Schema⊑Co`.
 
 ```agda
-just-inj : ∀ {A : Set} {x y : A} → just x ≡ just y → x ≡ y
-just-inj refl = refl
-
 -- If ps refines qs, then any successful lookup in ps
 -- corresponds to a successful lookup in qs, with a refinement witness.
 PropsRefine-respects-lookup :
