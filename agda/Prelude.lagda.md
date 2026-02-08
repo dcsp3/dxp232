@@ -9,41 +9,6 @@ postulate String : Set
 {-# BUILTIN STRING String #-}
 ```
 
-## Basic data types
-
-```agda
-data Bool : Set where
-  true false : Bool
-
-if_then_else_ : ∀ {A : Set} → Bool → A → A → A
-if true  then t else f = t
-if false then t else f = f
-
-data List (A : Set) : Set where
-  []   : List A
-  _::_  : A → List A → List A  
-
-infixr 10 _::_
-
-data Maybe (A : Set) : Set where
-  nothing : Maybe A
-  just    : A → Maybe A
-
-record Σ (A : Set) (B : A → Set) : Set where
-  constructor _,_
-  field
-    fst : A
-    snd : B fst
-
-_×_ : Set → Set → Set
-A × B = Σ A (λ _ → B)
-
-infixr 2 _×_
-
-∃ : ∀ {A : Set} → (A → Set) → Set
-∃ {A} P = Σ A P
-```
-
 ## Equality and basic logic
 
 ```agda
@@ -67,6 +32,44 @@ data Dec (P : Set) : Set where
 
 postulate
   _≟_ : (x y : String) → Dec (x ≡ y)
+```
+
+## Basic data types
+
+```agda
+data Bool : Set where
+  true false : Bool
+
+if_then_else_ : ∀ {A : Set} → Bool → A → A → A
+if true  then t else f = t
+if false then t else f = f
+
+data List (A : Set) : Set where
+  []   : List A
+  _::_  : A → List A → List A  
+
+infixr 10 _::_
+
+data Maybe (A : Set) : Set where
+  nothing : Maybe A
+  just    : A → Maybe A
+
+just-inj : ∀ {A : Set} {x y : A} → just x ≡ just y → x ≡ y
+just-inj refl = refl
+
+record Σ (A : Set) (B : A → Set) : Set where
+  constructor _,_
+  field
+    fst : A
+    snd : B fst
+
+_×_ : Set → Set → Set
+A × B = Σ A (λ _ → B)
+
+infixr 2 _×_
+
+∃ : ∀ {A : Set} → (A → Set) → Set
+∃ {A} P = Σ A P
 ```
 
 ## Equality Utilities
