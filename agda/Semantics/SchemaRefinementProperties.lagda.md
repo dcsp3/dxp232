@@ -247,49 +247,44 @@ If a list of properties `ps` refines into `qs`, then every property appearing in
 In particular, if looking up a key `k` in `ps` succeeds, then looking up the same key in `qs` must also succeed, and the corresponding schemas must be related by `Schema⊑Co`.
 
 ```agda
--- If ps refines qs, then any successful lookup in ps
--- corresponds to a successful lookup in qs, with a refinement witness.
 PropsRefine-respects-lookup :
     ∀ {k s ps qs}
   → PropsRefine Schema⊑Co ps qs
   → lookupProp k ps ≡ just s
   → ∃ (λ t → (lookupProp k qs ≡ just t) × (Schema⊑Co s t))
 
--- ps = []: lookupProp k [] = nothing, so it can't be just s.
+-- Base case: no fields in ps, so lookup cannot happen
 PropsRefine-respects-lookup {ps = []} tt ()
 
--- ps = (k0 , s0) :: ps'
+-- Inductive case: compare the lookup key with the head key
 PropsRefine-respects-lookup
   {k = k} {s = s} {ps = (k0 , s0) :: ps'} {qs = qs}
-  ((t0 , (lkHead , refHead)) , refTail)
+  ((t0 , (lkQ , srST)) , tailPQ)
   lk
   with k ≟ k0
 
 ... | yes k≡k0 = result
   where
-    -- In this branch, the lookup key matches the head key.
-    -- So lookupProp k ps returning just s really means the head schema is s.
+    -- lookup success means head schema is s
     s0≡s : s0 ≡ s
     s0≡s = just-inj lk
 
-    -- lkHead talks about key k0; rewrite it to key k using k≡k0.
-    lkHead' : lookupProp k qs ≡ just t0
-    lkHead' = subst (λ x → lookupProp x qs ≡ just t0) (sym k≡k0) lkHead
+    -- rewrite head lookup from k0 to k
+    lkQ' : lookupProp k qs ≡ just t0
+    lkQ' = subst (λ x → lookupProp x qs ≡ just t0) (sym k≡k0) lkQ
 
-    -- refHead is for s0; rewrite it to be for s using s0≡s.
-    refHead' : Schema⊑Co s t0
-    refHead' = subst (λ x → Schema⊑Co x t0) s0≡s refHead
+    -- rewrite schema refinement
+    srST' : Schema⊑Co s t0
+    srST' = subst (λ x → Schema⊑Co x t0) s0≡s srST
 
-    -- Return the matching schema t0 from qs, plus the two facts we just built.
     result : ∃ (λ t → (lookupProp k qs ≡ just t) × (Schema⊑Co s t))
-    result = (t0 , (lkHead' , refHead'))
+    result = (t0 , (lkQ' , srST'))
 
 ... | no k≢k0 =
-  -- Keys differ, so lookupProp skips the head.
-  -- Agda has already reduced lk to a tail-lookup fact, so we can recurse directly.
+  -- keys differ, skip head and recurse on tail
   PropsRefine-respects-lookup
     {k = k} {s = s} {ps = ps'} {qs = qs}
-    refTail
+    tailPQ
     lk
 ```
 
@@ -302,10 +297,6 @@ Transitivity for objects needs us to chain field-wise refinement across an inter
 If `ps` refines `qs`, and `qs` refines `rs`, then `ps` refines `rs`. For each field in `ps`, we first use the `ps → qs` witness to find the matching field in `qs`, then use 2.1 to push that same lookup through the `qs → rs` witness, and finally compose the two schema refinements.
 
 ```agda
--- If ps refines qs and qs refines rs, then ps refines rs.
---
--- Parameterised by transitivity of Schema⊑Co so we can use this lemma
--- while proving ⊑Co-trans itself.
 PropsRefine-trans :
     (transCo : ∀ {a b c} → Schema⊑Co a b → Schema⊑Co b c → Schema⊑Co a c)
   → ∀ {ps qs rs}
@@ -313,33 +304,35 @@ PropsRefine-trans :
   → PropsRefine Schema⊑Co qs rs
   → PropsRefine Schema⊑Co ps rs
 
--- No fields: nothing to do.
+-- Base case: no fields in ps so refinement holds trivially
 PropsRefine-trans transCo {ps = []} tt _ = tt
 
--- One field + tail: build the head witness, then recurse.
+-- Inductive case: compose refinement for the head field and recurse on the tail
 PropsRefine-trans transCo
   {ps = (k0 , s0) :: ps'} {qs = qs} {rs = rs}
-  ((t0 , (lk0 , ref0)) , restPQ)
-  refQR
+  ((t0 , (lkQ , srST)) , tailPQ)
+  prQR
   =
-    (u0 , (lkU , refHead)) , PropsRefine-trans transCo restPQ refQR
+    (u0 , (lkR , srSU))
+    , PropsRefine-trans transCo tailPQ prQR
   where
-    pushed :
+    -- push the lookup for key k0 from qs into rs
+    pushedQR :
       Σ Schema (λ u → (lookupProp k0 rs ≡ just u) × (Schema⊑Co t0 u))
-    pushed = PropsRefine-respects-lookup refQR lk0
+    pushedQR = PropsRefine-respects-lookup prQR lkQ
 
     u0 : Schema
-    u0 = fst pushed
+    u0 = fst pushedQR
 
-    lkU : lookupProp k0 rs ≡ just u0
-    lkU = fst (snd pushed)
+    lkR : lookupProp k0 rs ≡ just u0
+    lkR = fst (snd pushedQR)
 
-    refTU : Schema⊑Co t0 u0
-    refTU = snd (snd pushed)
+    srTU : Schema⊑Co t0 u0
+    srTU = snd (snd pushedQR)
 
-    -- Compose refinements: s0 ⊑ t0 and t0 ⊑ u0 gives s0 ⊑ u0.
-    refHead : Schema⊑Co s0 u0
-    refHead = transCo ref0 refTU
+    -- s0 ⊑ t0 and t0 ⊑ u0 gives s0 ⊑ u0.
+    srSU : Schema⊑Co s0 u0
+    srSU = transCo srST srTU
 ```
 
 ---
@@ -350,25 +343,24 @@ PropsRefine-trans transCo
 Transitivity is proved by structural recursion on the first refinement witness. Primitive and array cases are immediate. The object case composes field-wise refinement using `PropsRefine-trans`, and composes the required-key condition using `⊆-trans`.
 
 ```agda
--- Agda can’t see that recursion decreases on the first witness because
--- the recursive call is passed as an argument to PropsRefine-trans.
-
 {-# TERMINATING #-}
 
 ⊑Co-trans : ∀ {s t u} → Schema⊑Co s t → Schema⊑Co t u → Schema⊑Co s u
 ```
 
+Recursion decreases on the first `Schema⊑Co` witness. In the object case, the recursive calls are made only for field schemas via `PropsRefine-trans`, which are strict subcomponents. Agda cannot see this higher-order decrease, hence we use `{-# TERMINATING #-}`.
+
 ### Helper Lemmas
 
 ```agda
-prim-not-array : IsPrimitive array → ⊥
-prim-not-array ()
+prim≢array : IsPrimitive array → ⊥
+prim≢array ()
 
-prim-not-object : IsPrimitive object → ⊥
-prim-not-object ()
+prim≢object : IsPrimitive object → ⊥
+prim≢object ()
 
-array-not-object : array ≡ object → ⊥
-array-not-object ()
+array≢object : array ≡ object → ⊥
+array≢object ()
 ```
 
 ### Primitive Cases
@@ -382,52 +374,50 @@ array-not-object ()
 
 ⊑Co-trans
   (⊑-prim wfS wfT primS primT eqST)
-  (⊑-array wfT' wfU tyTArr tyUArr itT itU relTU)
+  (⊑-array wfT' wfU tyTArr tyUArr itT itU srTU)
   =
-    ⊥-elim (prim-not-array (subst IsPrimitive tyTArr primT))
+    ⊥-elim (prim≢array (subst IsPrimitive tyTArr primT))
 
 ⊑Co-trans
   (⊑-prim wfS wfT primS primT eqST)
-  (⊑-object wfT' wfU tyTObj tyUObj propsTU reqTU)
+  (⊑-object wfT' wfU tyTObj tyUObj prTU reqTU)
   =
-    ⊥-elim (prim-not-object (subst IsPrimitive tyTObj primT))
+    ⊥-elim (prim≢object (subst IsPrimitive tyTObj primT))
 ```
 
 ### Array Cases
 
 ```agda
 ⊑Co-trans
-  (⊑-array wfS wfT tySArr tyTArr itemsS itemsT relST)
+  (⊑-array wfS wfT tySArr tyTArr itemsS itemsT srST)
   (⊑-prim wfT' wfU primT primU eqTU)
   =
-    ⊥-elim (prim-not-array (subst IsPrimitive tyTArr primT))
+    ⊥-elim (prim≢array (subst IsPrimitive tyTArr primT))
   
 ⊑Co-trans
-  (⊑-array wfS wfT tySArr tyTArr itemsS itemsT relST)
-  (⊑-object wfT' wfU tyTObj tyUObj propsTU reqTU)
+  (⊑-array wfS wfT tySArr tyTArr itemsS itemsT srST)
+  (⊑-object wfT' wfU tyTObj tyUObj prTU reqTU)
   =
-    ⊥-elim (array-not-object (trans (sym tyTArr) tyTObj))
+    ⊥-elim (array≢object (trans (sym tyTArr) tyTObj))
 
 ⊑Co-trans
-  (⊑-array {si = si} {ti = ti} wfS wfT tySArr tyTArr itemsS itemsT relST)
-  (⊑-array {si = ti'} {ti = ui} wfT' wfU tyTArr' tyUArr itemsT' itemsU relTU)
+  (⊑-array {si = si} {ti = ti} wfS wfT tySArr tyTArr itemsS itemsT srST)
+  (⊑-array {si = ti'} {ti = ui} wfT' wfU tyTArr' tyUArr itemsT' itemsU srTU)
   = 
-    ⊑-array wfS wfU tySArr tyUArr itemsS itemsU relSU    
+    ⊑-array wfS wfU tySArr tyUArr itemsS itemsU srSU    
 
       where
-        -- Both proofs talk about Schema.items t; they may name the extracted schema differently.
-        -- itemsT : Schema.items t ≡ just ti
-        -- itemsT' : Schema.items t ≡ just ti'
+        -- align the two extracted item schemas from Schema.items t
         ti≡ti' : ti ≡ ti'
         ti≡ti' = just-inj (trans (sym itemsT) itemsT')
 
-        -- Rewrite relTU : Schema⊑Co ti' ui into Schema⊑Co ti ui.
-        relTU' : Schema⊑Co ti ui
-        relTU' = subst (λ x → Schema⊑Co x ui) (sym ti≡ti') relTU
+        -- rewrite srTU so its domain matches ti
+        srTU' : Schema⊑Co ti ui
+        srTU' = subst (λ x → Schema⊑Co x ui) (sym ti≡ti') srTU
 
-        -- Now compose item refinements.
-        relSU : Schema⊑Co si ui
-        relSU = ⊑Co-trans relST relTU'
+        -- compose item refinements
+        srSU : Schema⊑Co si ui
+        srSU = ⊑Co-trans srST srTU'
 ```
 
 ### Object Cases
@@ -437,20 +427,22 @@ array-not-object ()
   (⊑-object wfS wfT tySObj tyTObj propsST reqST)
   (⊑-prim wfT' wfU primT primU eqTU)
   =
-    ⊥-elim (prim-not-object (subst IsPrimitive tyTObj primT))
+    ⊥-elim (prim≢object (subst IsPrimitive tyTObj primT))
 
 ⊑Co-trans
-  (⊑-object wfS wfT tySObj tyTObj propsST reqST)
-  (⊑-array wfT' wfU tyTArr tyUArr itT itU relTU)
+  (⊑-object wfS wfT tySObj tyTObj prST reqST)
+  (⊑-array wfT' wfU tyTArr tyUArr itT itU srTU)
   =
-    ⊥-elim (array-not-object (trans (sym tyTArr) tyTObj))
+    ⊥-elim (array≢object (trans (sym tyTArr) tyTObj))
 
 
 ⊑Co-trans
-  (⊑-object wfS wfT tySObj tyTObj propsST reqST)
-  (⊑-object wfT' wfU tyTObj' tyUObj propsTU reqTU)
+  (⊑-object wfS wfT tySObj tyTObj prST reqST)
+  (⊑-object wfT' wfU tyTObj' tyUObj prTU reqTU)
   =
-    ⊑-object wfS wfU tySObj tyUObj (PropsRefine-trans ⊑Co-trans propsST propsTU) (⊆-trans reqST reqTU)
+    ⊑-object wfS wfU tySObj tyUObj
+    (PropsRefine-trans ⊑Co-trans prST prTU)
+    (⊆-trans reqST reqTU)
 ```
 
 ---
