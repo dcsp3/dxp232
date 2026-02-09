@@ -28,7 +28,6 @@ open Σ using (fst ; snd)
 Reflexivity states that every well-formed schema is a safe replacement for itself.
 
 ```agda
--- todo: cleanup code and explanations
 ⊑Co-refl : ∀ {s} → WFSchema s → Schema⊑Co s s
 ```
 
@@ -42,26 +41,25 @@ build the `PropsRefine` witness.
 The object case relies on the fact that looking up a key at the head of an association list succeeds.
 
 ```agda
-
--- If the key we’re looking for is at the head of the list, lookup returns that schema.
+-- Lookup succeeds when the key is at the head of the list
 lookupProp-here :
     ∀ {k s ps}
   → lookupProp k ((k , s) :: ps) ≡ just s
 lookupProp-here {k} {s} {ps} with k ≟ k
-... | yes _   = refl
-... | no  nk  = ⊥-elim (nk refl)
+... | yes _    = refl
+... | no  k≢k  = ⊥-elim (k≢k refl)
 
 
--- If the head key is different, looking up k in (k' , s) :: ps is the same as looking up k in ps.
+-- If the head key is different, skip the head (i.e search the tail)
 lookupProp-skip :
-    ∀ {k k' s ps}
-  → k ≢ k'
-  → lookupProp k ((k' , s) :: ps) ≡ lookupProp k ps
-lookupProp-skip {k} {k'} {s} {ps} k≢k' with k ≟ k'
-... | yes eq = ⊥-elim (k≢k' eq)
-... | no  _  = refl
+    ∀ {k k0 s ps}
+  → k ≢ k0
+  → lookupProp k ((k0 , s) :: ps) ≡ lookupProp k ps
+lookupProp-skip {k} {k0} {s} {ps} k≢k0 with k ≟ k0
+... | yes k≡k0 = ⊥-elim (k≢k0 k≡k0)
+... | no  _    = refl
 
--- Inserting a pair (k,s) after the head doesn’t affect lookup for any key x as long as x ≢ k.
+-- Inserting a fresh pair after the head does not affect lookup for other keys
 lookupProp-insert-after-head :
     ∀ {x k0 s0 k s target}
   → x ≢ k
@@ -69,7 +67,7 @@ lookupProp-insert-after-head :
     ≡ lookupProp x ((k0 , s0) :: target)
 lookupProp-insert-after-head {x} {k0} {s0} {k} {s} {target} x≢k with x ≟ k0
 ... | yes _ = refl
-... | no  _ = lookupProp-skip {k = x} {k' = k} {s = s} {ps = target} x≢k
+... | no  _ = lookupProp-skip {k = x} {k0 = k} {s = s} {ps = target} x≢k
 ```
 
 ---
@@ -79,23 +77,17 @@ lookupProp-insert-after-head {x} {k0} {s0} {k} {s} {target} x≢k with x ≟ k0
 To construct the object refinement witness in the reflexivity proof, we show that a
 property list refines itself (field-by-field) under `Schema⊑Co`.
 
-This relies on the well-formedness invariant that object property keys are unique so that the list behaves like a real property map; otherwise refinement becomes order-sensitive and can misrepresent OpenAPI objects.
+This relies on the well-formedness invariant that object property keys are unique, so the list behaves like a proper property map. Without uniqueness, refinement would become order-sensitive and could misrepresent OpenAPI objects.
 
----
-
-layman terms explanation (incorporate this later maybe):
-We need to prove `PropsRefine Schema⊑Co props props`
-
-But `PropsRefine` is defined by lookup into the new list. So even reflexivity needs a witness that says:
+Specifically, we need a a witness that says:
 - each key in props can be looked up in props
 - and its schema refines itself
 
-that’s what `PropsRefine-refl` gives us...
+and that is what `PropsRefine-refl` gives us.
 
 ```
--- if ps already refines the target object, then adding a new field (k,s) to the target is safe as long as k is fresh
--- old properties are still preserved, matching OpenAPI’s backward-compatibility rule for responses
-
+-- If ps refines (k0 , s0) :: target, then inserting a fresh (k , s)
+-- after the head preserves refinement of ps
 PropsRefine-insert-after-head :
     ∀ {k0 s0 k s ps target}
   → PropsRefine Schema⊑Co ps ((k0 , s0) :: target)
@@ -107,18 +99,14 @@ PropsRefine-insert-after-head {ps = []} tt _ = tt
 PropsRefine-insert-after-head
   {k0 = k0} {s0 = s0} {k = k} {s = s}
   {ps = (x , sx) :: ps'} {target = target}
-  ((sn , (eq , ref)) , rest)
+  ((sn , (lk , sr)) , tail)
   (notin::_ k≢x k∉tail)
-  =
-  ( sn
-  , ( eq' , ref )
-  )
+  = (sn , ( eq' , sr ))
   , PropsRefine-insert-after-head
     {k0 = k0} {s0 = s0} {k = k} {s = s} {ps = ps'} {target = target}
-    rest
+    tail
     k∉tail
   where
-    -- we need x ≢ k, but notin gives k ≢ x
     x≢k : x ≢ k
     x≢k e = k≢x (sym e)
 
@@ -126,12 +114,12 @@ PropsRefine-insert-after-head
     eq' =
       trans
         (lookupProp-insert-after-head x≢k)
-        eq
+        lk
 ```
 
 ```agda
--- adding a fresh property k preserves refinement of existing properties, provided it doesn't already exist
-
+-- Adding a fresh property (k , sch) preserves refinement of the existing
+-- properties ps into ((k , sch) :: ps)
 PropsRefine-tail :
     ∀ {k sch ps}
   → WFSchema sch
@@ -142,24 +130,27 @@ PropsRefine-tail :
 
 PropsRefine-tail {ps = []} wfSch uniq notin all = tt
 
-PropsRefine-tail {k} {sch} {ps = (k' , sch') :: ps'}
+PropsRefine-tail
+  {k} {sch} {ps = (k' , sch') :: ps'}
   wfSch
-  (uniq::_ k'∉tail uniqTail) -- Deconstruct uniqueness
+  (uniq::_ k'∉tail uniqTail)
   (notin::_ k≢k' k∉tail)
-  (all::_ wfSch' rest)
-  = 
-  -- 1. Head witness: (k', sch') is in ((k, sch) :: (k', sch') :: ps')
-  (sch' , (trans (lookupProp-skip (λ e → k≢k' (sym e))) lookupProp-here , ⊑Co-refl wfSch'))
-  
-  -- 2. Tail witness: use skip-after-head to insert (k', sch') into the target of the recursion
+  (all::_ wfSch' wfTail)
+  =
+    (sch' , (lkHead , ⊑Co-refl wfSch'))
   , PropsRefine-insert-after-head
-    {k0 = k} {s0 = sch} {k = k'} {s = sch'} {ps = ps'} {target = ps'}
-    (PropsRefine-tail {k = k} {sch = sch} {ps = ps'} wfSch uniqTail k∉tail rest)
-    k'∉tail                                    -- Proof that k' is not in ps'
+      {k0 = k} {s0 = sch} {k = k'} {s = sch'}
+      {ps = ps'} {target = ps'}
+      (PropsRefine-tail {k = k} {sch = sch} {ps = ps'} wfSch uniqTail k∉tail wfTail)
+      k'∉tail
+  where
+    -- Lookup k' in ((k , sch) :: (k' , sch') :: ps') succeeds at the second position
+    lkHead : lookupProp k' ((k , sch) :: (k' , sch') :: ps') ≡ just sch'
+    lkHead = trans (lookupProp-skip (λ e → k≢k' (sym e))) lookupProp-here
 ```
 
 ```agda
--- property refinement reflexivity final boss ie what we use in the main lemmas
+-- A well-formed property list refines itself field-by-field
 PropsRefine-refl :
     ∀ {ps}
   → Unique (keys ps)
@@ -167,21 +158,15 @@ PropsRefine-refl :
   → PropsRefine Schema⊑Co ps ps
 PropsRefine-refl {ps = []} uniq all = tt
 
-PropsRefine-refl {ps = (k , sch) :: ps'}
+PropsRefine-refl
+  {ps = (k , sch) :: ps'}
   (uniq::_ k∉tail uniqTail)
-  (all::_ wfSch rest)
+  (all::_ wfSch wfTail)
   =
-  ( sch
-  , ( lookupProp-here {k = k} {s = sch} {ps = ps'}
-    , ⊑Co-refl wfSch
-    )
-  )
+    (sch , (lookupProp-here , ⊑Co-refl wfSch))
   , PropsRefine-tail
       {k = k} {sch = sch} {ps = ps'}
-      wfSch
-      uniqTail
-      k∉tail
-      rest
+      wfSch uniqTail k∉tail wfTail
 ```
 
 ---
@@ -190,7 +175,7 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
 
 ```agda
 ⊑Co-refl (wf-prim prim items≡ props≡ req≡) =
-  -- primitives refine themselves (same primitive type)
+  -- Primitives refine themselves (same primitive type)
   ⊑-prim
     (wf-prim prim items≡ props≡ req≡)
     (wf-prim prim items≡ props≡ req≡)
@@ -198,7 +183,7 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
 
 ⊑Co-refl (wf-array ty≡ items≡ wfItem props≡ req≡) =
   ⊑-array
-    -- arrays refine covariantly when their item schemas refine (recurse on items)
+    -- Arrays refine covariantly when their item schemas refine (recurse on items)
     (wf-array ty≡ items≡ wfItem props≡ req≡)
     (wf-array ty≡ items≡ wfItem props≡ req≡)
     ty≡ ty≡
@@ -207,7 +192,7 @@ PropsRefine-refl {ps = (k , sch) :: ps'}
 
 ⊑Co-refl (wf-object ty≡ items≡ wfProps wfReq wfUniq reqUniq) =
   ⊑-object
-    -- objects refine when all old properties are preserved and refine
+    -- Objects refine when all old properties are preserved and refine
     (wf-object ty≡ items≡ wfProps wfReq wfUniq reqUniq)
     (wf-object ty≡ items≡ wfProps wfReq wfUniq reqUniq)
     ty≡ ty≡

@@ -40,6 +40,12 @@ A change is safe if *every request that was valid before is still accepted.*
 
 That reverses the direction of inclusion.
 
+---
+
+| Context | Data Flow | Who must stay tolerant? | Safe change | Forbidden change | Required-field rule |
+|--------|----------|--------------------------|------------|----------------|--------------------|
+| Responses (covariant) | Server → Client | Client | Add required/optional fields | Remove required fields | `oldReq ⊆ newReq` |
+| Requests (contravariant) | Client → Server | Server | Remove required fields (accept more shapes) | Add required fields | `newReq ⊆ oldReq` |
 
 
 
