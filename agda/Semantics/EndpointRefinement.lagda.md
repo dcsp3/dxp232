@@ -15,7 +15,7 @@ The answer follows the same variance discipline we used earlier:
 - Things the **client observes** (responses) are checked **covariantly**.
 - The structural identity of the endpoint (route and method) must not change.
 
-This file formalisese that judgement.
+This file formalises that judgement.
 
 ---
 
@@ -34,9 +34,9 @@ open Σ using (fst ; snd)
 
 ## 1. Endpoint refinement
 
-At the top level we define a relation `Endpoint⊑ : Endpoint → Endpoint → Set` which should be read as:
+At the top level we define a relation `Endpoint⊑ : Endpoint → Endpoint → Set` where:
 
->'eNew' safely refines 'eOld'.
+> `Endpoint⊑ eOld eNew` means 'eNew' safely refines 'eOld'.
 
 Endpoint refinement needs two things:
 
@@ -45,6 +45,10 @@ Endpoint refinement needs two things:
 
 For the second part we use simple lookup functions, and those require decidable
 equality on `ParamLocation` and `Status`.
+
+As with schema refinement, we only relate well-formed endpoints. The
+well-formedness invariant ensures that parameter keys and response status
+codes are unique, so that the lookup-based definitions below are unambiguous.
 
 ### 1.1 Decidable equality
 
@@ -104,12 +108,11 @@ lookupResp st (response st' s :: rs) with Status≟ st st'
 ... | no  _ = lookupResp st rs
 ```
 
-As with schema refinement, endpoint refinement will be defined by matching components via lookup, then applying the relevant variance-aware schema check.
+Endpoint refinement will be defined by matching components via lookup, then applying the relevant variance-aware schema check, similar to schema refinement.
 
 ---
 
 ## 2. Component judgements
-
 
 Endpoint refinement is built out of three smaller relations:
 
@@ -185,17 +188,19 @@ and then combines the three component checks.
 data Endpoint⊑ : Endpoint → Endpoint → Set where
   ⊑-endpoint :
       ∀ {eOld eNew}
-      (route≡  : Endpoint.route  eOld ≡ Endpoint.route  eNew)
-      (method≡ : Endpoint.method eOld ≡ Endpoint.method eNew)
+      → WFEndpoint eOld
+      → WFEndpoint eNew
+      → Endpoint.route  eOld ≡ Endpoint.route  eNew
+      → (method≡ : Endpoint.method eOld ≡ Endpoint.method eNew)
       → Params⊑Contra
           (Endpoint.parameters eOld)
           (Endpoint.parameters eNew)
-      → Resps⊑Co
-          (Endpoint.responses eOld)
-          (Endpoint.responses eNew)
       → Body⊑Contra method≡
           (Endpoint.body eOld)
           (Endpoint.body eNew)
+      → Resps⊑Co
+          (Endpoint.responses eOld)
+          (Endpoint.responses eNew)
       → Endpoint⊑ eOld eNew
 ```
 
