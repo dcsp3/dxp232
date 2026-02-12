@@ -82,6 +82,8 @@ Status≟ NoContent  NotFound   = no (λ ())
 Status≟ NoContent  BadRequest = no (λ ())
 ```
 
+---
+
 ### 1.2 Lookup helpers
 
 We align list-based endpoint components by looking up corresponding entries.
@@ -106,6 +108,49 @@ lookupResp st [] = nothing
 lookupResp st (response st' s :: rs) with Status≟ st st'
 ... | yes _ = just s
 ... | no  _ = lookupResp st rs
+```
+
+---
+
+### 1.3 Lookup computation lemmas
+
+
+The refinement relations below use lookup to align list-based components.
+To make the properties proofs go through, we record the two basic lookup
+facts we will use repeatedly:
+
+- **here**: looking up the head key succeeds immediately
+- **there**: if the head key does not match, lookup proceeds into the tail
+
+```agda
+lookupParam-here :
+  ∀ {p ps}
+  → lookupParam
+       (Parameter.location p)
+       (Parameter.name p)
+       (p :: ps)
+    ≡ just p
+lookupParam-here {p} {ps}
+  with ParamLocation≟ (Parameter.location p) (Parameter.location p)
+... | no  contra = ⊥-elim (contra refl)
+... | yes refl
+  with (Parameter.name p ≟ Parameter.name p)
+... | yes refl = refl
+... | no  contra = ⊥-elim (contra refl)
+
+-- skip a head parameter whose (location,name) cannot match (ℓ,k)
+lookupParam-there :
+    ∀ {h ℓ k ps p}
+  → (Parameter.location h , Parameter.name h) ≢ (ℓ , k)
+  → lookupParam ℓ k ps ≡ just p
+  → lookupParam ℓ k (h :: ps) ≡ just p
+lookupParam-there {h} {ℓ} {k} {ps} {p} head≢ ih
+  with ParamLocation≟ ℓ (Parameter.location h)
+... | no _ = ih
+... | yes refl
+  with (k ≟ Parameter.name h)
+...   | no _ = ih
+...   | yes refl = ⊥-elim (head≢ refl)
 ```
 
 Endpoint refinement will be defined by matching components via lookup, then applying the relevant variance-aware schema check, similar to schema refinement.
@@ -150,6 +195,8 @@ Params⊑Contra (p :: ps) new =
   × Params⊑Contra ps new
 ```
 
+---
+
 ### 2.2 Request bodies
 
 Bodies are checked contravariantly using the variance wrapper around schema refinement.
@@ -162,6 +209,8 @@ Body⊑Contra {POST}   {POST}   refl (HasBody  s) (HasBody  t) = Schema⊑ Contr
 Body⊑Contra {PUT}    {PUT}    refl (HasBodyU s) (HasBodyU t) = Schema⊑ Contra s t
 Body⊑Contra {PATCH}  {PATCH}  refl (HasBodyP s) (HasBodyP t) = Schema⊑ Contra s t
 ```
+
+---
 
 ### 2.3 Responses
 
@@ -178,6 +227,8 @@ Resps⊑Co (response st s :: rs) new =
      × Schema⊑ Co s t))
   × Resps⊑Co rs new
 ```
+
+---
 
 ### 2.4 Endpoint refinement
 
