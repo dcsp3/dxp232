@@ -34,17 +34,11 @@ open Σ using (fst ; snd)
 
 ## 1. Endpoint refinement
 
-At the top level we define a relation
-
-```agda
-Endpoint⊑ : Endpoint → Endpoint → Set
-```
-
-which should be read as:
+At the top level we define a relation `Endpoint⊑ : Endpoint → Endpoint → Set` which should be read as:
 
 >'eNew' safely refines 'eOld'.
 
-Endpoint refinement needs two ingredients:
+Endpoint refinement needs two things:
 
 1. a variance-aware use of schema refinement (requests contra, responses co)
 2. a way to align parameters and responses across two endpoints
@@ -115,3 +109,93 @@ As with schema refinement, endpoint refinement will be defined by matching compo
 ---
 
 ## 2. Component judgements
+
+
+Endpoint refinement is built out of three smaller relations:
+
+- parameter refinement (request-facing, so contravariant)
+- body refinement (request-facing, so contravariant)
+- response refinement (client-observed, so covariant)
+
+We define these first, then combine them into the main endpoint judgement.
+
+### 2.1 Parameters
+
+A parameter is identified by its `(location , name)` pair.
+The new endpoint must still provide every parameter that old clients may send.
+
+Since parameters in our syntax carry a `Base` schema, we require the base type
+to be unchanged. We also forbid parameters from becoming newly required.
+
+```agda
+ReqWeakens : Bool → Bool → Set
+ReqWeakens old new = new ≡ true → old ≡ true
+
+Param⊑Contra : Parameter → Parameter → Set
+Param⊑Contra pOld pNew =
+    Parameter.location pOld ≡ Parameter.location pNew
+  × Parameter.name     pOld ≡ Parameter.name     pNew
+  × Parameter.schema   pOld ≡ Parameter.schema   pNew
+  × ReqWeakens (Parameter.required pOld) (Parameter.required pNew)
+
+Params⊑Contra : List Parameter → List Parameter → Set
+Params⊑Contra [] new = ⊤
+Params⊑Contra (p :: ps) new =
+  (Σ Parameter (λ p' →
+       lookupParam (Parameter.location p) (Parameter.name p) new ≡ just p'
+     × Param⊑Contra p p'))
+  × Params⊑Contra ps new
+```
+
+### 2.2 Request bodies
+
+Bodies are checked contravariantly using the variance wrapper around schema refinement.
+
+```agda
+Body⊑Contra : ∀ {m n} → m ≡ n → Body m → Body n → Set
+Body⊑Contra {GET}    {GET}    refl NoBody       NoBody       = ⊤
+Body⊑Contra {DELETE} {DELETE} refl NoBodyD      NoBodyD      = ⊤
+Body⊑Contra {POST}   {POST}   refl (HasBody  s) (HasBody  t) = Schema⊑ Contra s t
+Body⊑Contra {PUT}    {PUT}    refl (HasBodyU s) (HasBodyU t) = Schema⊑ Contra s t
+Body⊑Contra {PATCH}  {PATCH}  refl (HasBodyP s) (HasBodyP t) = Schema⊑ Contra s t
+```
+
+### 2.3 Responses
+
+Responses are checked covariantly.
+For each status code present in the old endpoint, the new endpoint must still
+provide a schema for that status, and it must refine the old schema.
+
+```agda
+Resps⊑Co : List Response → List Response → Set
+Resps⊑Co [] new = ⊤
+Resps⊑Co (response st s :: rs) new =
+  (Σ Schema (λ t →
+       lookupResp st new ≡ just t
+     × Schema⊑ Co s t))
+  × Resps⊑Co rs new
+```
+
+### 2.4 Endpoint refinement
+
+Finally, endpoint refinement pins the structural identity of the endpoint (route and method)
+and then combines the three component checks.
+
+```agda
+data Endpoint⊑ : Endpoint → Endpoint → Set where
+  ⊑-endpoint :
+      ∀ {eOld eNew}
+      (route≡  : Endpoint.route  eOld ≡ Endpoint.route  eNew)
+      (method≡ : Endpoint.method eOld ≡ Endpoint.method eNew)
+      → Params⊑Contra
+          (Endpoint.parameters eOld)
+          (Endpoint.parameters eNew)
+      → Resps⊑Co
+          (Endpoint.responses eOld)
+          (Endpoint.responses eNew)
+      → Body⊑Contra method≡
+          (Endpoint.body eOld)
+          (Endpoint.body eNew)
+      → Endpoint⊑ eOld eNew
+```
+
