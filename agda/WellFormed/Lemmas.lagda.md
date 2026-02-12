@@ -127,7 +127,7 @@ wfpath-placeholders-declared :
   → WFPath p ps
   → x ∈ pathPlaceholders p
   → x ∈ pathParamNames ps
-wfpath-placeholders-declared (wf-path ⊆l _) x∈ =
+wfpath-placeholders-declared (wf-path _ ⊆l _) x∈ =
   All-∈ ⊆l x∈
 
 wfpath-pathparams-mentioned :
@@ -135,7 +135,7 @@ wfpath-pathparams-mentioned :
   → WFPath p ps
   → x ∈ pathParamNames ps
   → x ∈ pathPlaceholders p
-wfpath-pathparams-mentioned (wf-path _ ⊆r) x∈ =
+wfpath-pathparams-mentioned (wf-path _ _ ⊆r) x∈ =
   All-∈ ⊆r x∈
 ```
 
