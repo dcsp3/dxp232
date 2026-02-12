@@ -87,6 +87,21 @@ cong f refl = refl
 subst : ∀ {A : Set} (P : A → Set) {x y : A} → x ≡ y → P x → P y
 subst P refl px = px
 
+pair-≡ :
+    ∀ {A B : Set} {a a' : A} {b b' : B}
+  → a ≡ a'
+  → b ≡ b'
+  → (a , b) ≡ (a' , b')
+pair-≡ refl refl = refl
+
+≢-transport :
+    ∀ {A : Set} {x y z : A}
+  → x ≢ y
+  → y ≡ z
+  → x ≢ z
+≢-transport x≢y y≡z x≡z =
+  x≢y (trans x≡z (sym y≡z))
+
 ⊥-elim : ∀ {A : Set} → ⊥ → A
 ⊥-elim ()
 ```
