@@ -260,3 +260,128 @@ Params⊑Contra-trans {ps = p :: ps} {qs} {rs}
     q⊑r : Param⊑Contra q r
     q⊑r = snd (snd r-wit)
 ```
+
+### 2.3 Body transitivity
+
+Body refinement composes by composition of schema refinement.
+
+```agda
+Body⊑Contra-trans :
+  ∀ {m₀ m₁ m₂}
+    {b₀ : Body m₀}
+    {b₁ : Body m₁}
+    {b₂ : Body m₂}
+  → (eq₀₁ : m₀ ≡ m₁)
+  → (eq₁₂ : m₁ ≡ m₂)
+  → Body⊑Contra eq₀₁ b₀ b₁
+  → Body⊑Contra eq₁₂ b₁ b₂
+  → Body⊑Contra (trans eq₀₁ eq₁₂) b₀ b₂
+  
+Body⊑Contra-trans
+  {b₀ = b₀}
+  {b₁ = b₁}
+  {b₂ = b₂}
+  refl refl p q
+  with b₀ | b₁ | b₂
+... | NoBody   | NoBody   | NoBody   = tt
+... | NoBodyD  | NoBodyD  | NoBodyD  = tt
+... | HasBody s₀  | HasBody s₁  | HasBody s₂  =
+      ⊑Co-trans q p
+... | HasBodyU s₀ | HasBodyU s₁ | HasBodyU s₂ =
+      ⊑Co-trans q p
+... | HasBodyP s₀ | HasBodyP s₁ | HasBodyP s₂ =
+      ⊑Co-trans q p
+```
+
+### 2.4 Response transitivity
+
+```agda
+Resps⊑Co-lookup :
+    ∀ {rs ss st s}
+  → Resps⊑Co rs ss
+  → lookupResp st rs ≡ just s
+  → Σ Schema (λ t →
+       lookupResp st ss ≡ just t
+     × Schema⊑ Co s t)
+
+Resps⊑Co-lookup {rs = []} _ ()
+Resps⊑Co-lookup {rs = response st₀ s₀ :: rs}
+                 {ss} {st} {s}
+                 ( (t₀ , (lkt₀ , s₀⊑t₀)) , rest )
+                 lk
+  with Status≟ st st₀
+... | no _ =
+  Resps⊑Co-lookup rest lk
+... | yes refl =
+  let s₀≡s : s₀ ≡ s
+      s₀≡s = just-inj lk
+  in
+  t₀
+  , ( lkt₀
+    , subst (λ x → Schema⊑ Co x t₀) s₀≡s s₀⊑t₀
+    )
+
+Resps⊑Co-trans :
+    ∀ {rs ss ts}
+  → Resps⊑Co rs ss
+  → Resps⊑Co ss ts
+  → Resps⊑Co rs ts
+
+Resps⊑Co-trans {rs = []} _ _ = tt
+
+Resps⊑Co-trans {rs = response st s :: rs}
+               {ss} {ts}
+               ( (t , (lkt , s⊑t)) , rs⊑ss )
+               ss⊑ts
+  =
+  ( u
+  , ( lku
+    , ⊑Co-trans s⊑t t⊑u
+    )
+  )
+  , Resps⊑Co-trans rs⊑ss ss⊑ts
+  where
+
+    u-wit :
+      Σ Schema (λ u →
+           lookupResp st ts ≡ just u
+         × Schema⊑ Co t u)
+
+    u-wit = Resps⊑Co-lookup ss⊑ts lkt
+
+    u : Schema
+    u = fst u-wit
+
+    lku : lookupResp st ts ≡ just u
+    lku = fst (snd u-wit)
+
+    t⊑u : Schema⊑ Co t u
+    t⊑u = snd (snd u-wit)
+```
+
+### 2.5 Endpoint transitivity
+
+Endpoint refinement composes across endpoints: if e₀ ⊑ e₁ and e₁ ⊑ e₂, then e₀ ⊑ e₂.
+
+```agda
+Endpoint⊑-trans :
+  ∀ {e₀ e₁ e₂}
+  → Endpoint⊑ e₀ e₁
+  → Endpoint⊑ e₁ e₂
+  → Endpoint⊑ e₀ e₂
+
+Endpoint⊑-trans
+  (⊑-endpoint wf₀ wf₁ routeEq₀ methodEq₀
+               params₀⊑₁ body₀⊑₁ resps₀⊑₁)
+  (⊑-endpoint _   wf₂ routeEq₁ methodEq₁
+               params₁⊑₂ body₁⊑₂ resps₁⊑₂)
+  =
+  ⊑-endpoint
+    wf₀
+    wf₂
+    (trans routeEq₀ routeEq₁)
+    (trans methodEq₀ methodEq₁)
+    (Params⊑Contra-trans params₀⊑₁ params₁⊑₂)
+    (Body⊑Contra-trans methodEq₀ methodEq₁ body₀⊑₁ body₁⊑₂)
+    (Resps⊑Co-trans resps₀⊑₁ resps₁⊑₂)
+```
