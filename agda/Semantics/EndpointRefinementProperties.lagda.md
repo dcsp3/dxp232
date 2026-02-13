@@ -20,6 +20,8 @@ open import WellFormed.Core
 
 open import Semantics.Variance
 open import Semantics.SchemaRefinement
+open import Semantics.SchemaRefinementProperties
+
 open import Semantics.EndpointRefinement
 
 open Σ using (fst ; snd)
@@ -70,12 +72,86 @@ Params⊑Contra-refl {ps = p :: ps} (uniq::_ p∉tail uniqTail) =
 
 ---
 
-### 1.2 Body
+### 1.2 Body reflexivity
+
+Body refinement is contravariant, but reflexivity follows directly from
+reflexivity of schema refinement.
 
 ```agda
-
+Body⊑Contra-refl :
+    ∀ {m} {b : Body m}
+  → WFBody b
+  → Body⊑Contra refl b b
+Body⊑Contra-refl wf-nobody   = tt
+Body⊑Contra-refl wf-nobodyD  = tt
+Body⊑Contra-refl (wf-hasBody  wfS) = ⊑Co-refl wfS
+Body⊑Contra-refl (wf-hasBodyU wfS) = ⊑Co-refl wfS
+Body⊑Contra-refl (wf-hasBodyP wfS) = ⊑Co-refl wfS
 ```
 
 ---
 
-### 1.3 Responses
+### 1.3 Response reflexivity
+
+Responses are checked covariantly. Reflexivity follows by recursion, using a weakening lemma to show that adding a fresh head response does not affect lookups for the tail statuses.
+
+```agda
+Resps⊑Co-weaken :
+    ∀ {st₀ s₀ rs new}
+  → st₀ ∉ respKeys rs
+  → Resps⊑Co rs new
+  → Resps⊑Co rs (response st₀ s₀ :: new)
+Resps⊑Co-weaken {rs = []} _ tt = tt
+Resps⊑Co-weaken {st₀} {s₀} {rs = response st s :: rs} {new}
+  (notin::_ st₀≢st st₀∉tail)
+  ( (t , (lkt , rt)) , rest )
+  =
+  ( t
+  , ( lookupResp-there st₀≢st lkt
+    , rt
+    )
+  )
+  , Resps⊑Co-weaken st₀∉tail rest
+
+Resps⊑Co-refl :
+    ∀ {rs}
+  → Unique (respKeys rs)
+  → All WFResponse rs
+  → Resps⊑Co rs rs
+Resps⊑Co-refl {rs = []} uniq[] all[] = tt
+Resps⊑Co-refl {rs = response st s :: rs}
+  (uniq::_ st∉tail uniqTail)
+  (all::_ (wf-response wfS) rest)
+  =
+  ( s
+  , ( lookupResp-here {st = st} {s = s} {rs = rs}
+    , ⊑Co-refl wfS
+    )
+  )
+  , Resps⊑Co-weaken st∉tail (Resps⊑Co-refl uniqTail rest)
+```
+
+### 1.4 Endpoint reflexivity
+
+Finally, reflexivity of `Endpoint⊑` follows by combining the component
+reflexivity lemmas.
+
+```agda
+Endpoint⊑-refl :
+    ∀ {e}
+  → WFEndpoint e
+  → Endpoint⊑ e e
+Endpoint⊑-refl {e} (wf-endpoint wfPath wfParams uniqParams wfBody wfResps uniqResps) =
+  ⊑-endpoint
+    (wf-endpoint wfPath wfParams uniqParams wfBody wfResps uniqResps)
+    (wf-endpoint wfPath wfParams uniqParams wfBody wfResps uniqResps)
+    refl
+    refl
+    (Params⊑Contra-refl uniqParams)
+    (Body⊑Contra-refl wfBody)
+    (Resps⊑Co-refl uniqResps wfResps)
+```
+
+---
+
+## 2. Transitivity
