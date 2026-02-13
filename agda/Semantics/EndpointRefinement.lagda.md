@@ -80,6 +80,12 @@ Status≟ BadRequest NoContent  = no (λ ())
 Status≟ NoContent  OK         = no (λ ())
 Status≟ NoContent  NotFound   = no (λ ())
 Status≟ NoContent  BadRequest = no (λ ())
+
+Status≟-refl : ∀ {st} → Status≟ st st ≡ yes refl
+Status≟-refl {OK}         = refl
+Status≟-refl {NotFound}   = refl
+Status≟-refl {BadRequest} = refl
+Status≟-refl {NoContent}  = refl
 ```
 
 ---
@@ -151,6 +157,26 @@ lookupParam-there {h} {ℓ} {k} {ps} {p} head≢ ih
   with (k ≟ Parameter.name h)
 ...   | no _ = ih
 ...   | yes refl = ⊥-elim (head≢ refl)
+```
+
+```agda
+lookupResp-here :
+  ∀ {st s rs}
+  → lookupResp st (response st s :: rs) ≡ just s
+lookupResp-here {st} {s} {rs}
+  with Status≟ st st | Status≟-refl {st}
+... | yes refl | refl = refl
+
+-- skip a head response whose status cannot match the one we are looking up
+lookupResp-there :
+    ∀ {st st₀ s₀ rs t}
+  → st₀ ≢ st
+  → lookupResp st rs ≡ just t
+  → lookupResp st (response st₀ s₀ :: rs) ≡ just t
+lookupResp-there {st} {st₀} {s₀} {rs} {t} st₀≢st ih
+  with Status≟ st st₀
+... | yes st≡st₀ = ⊥-elim (st₀≢st (sym st≡st₀))
+... | no  _      = ih
 ```
 
 Endpoint refinement will be defined by matching components via lookup, then applying the relevant variance-aware schema check, similar to schema refinement.
