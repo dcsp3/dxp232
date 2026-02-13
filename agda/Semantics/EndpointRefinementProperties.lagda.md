@@ -141,10 +141,10 @@ Endpoint⊑-refl :
     ∀ {e}
   → WFEndpoint e
   → Endpoint⊑ e e
-Endpoint⊑-refl {e} (wf-endpoint wfPath wfParams uniqParams wfBody wfResps uniqResps) =
+Endpoint⊑-refl {e} wf@(wf-endpoint _ _ uniqParams wfBody wfResps uniqResps) =
   ⊑-endpoint
-    (wf-endpoint wfPath wfParams uniqParams wfBody wfResps uniqResps)
-    (wf-endpoint wfPath wfParams uniqParams wfBody wfResps uniqResps)
+    wf
+    wf
     refl
     refl
     (Params⊑Contra-refl uniqParams)
