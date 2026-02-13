@@ -385,3 +385,35 @@ Endpoint⊑-trans
     (Body⊑Contra-trans methodEq₀ methodEq₁ body₀⊑₁ body₁⊑₂)
     (Resps⊑Co-trans resps₀⊑₁ resps₁⊑₂)
 ```
+
+---
+
+## 3. Endpoint refinement as a preorder
+
+Reflexivity of `Endpoint⊑` requires a well-formedness proof.
+So, as with schemas, we define the preorder over endpoints paired with their `WFEndpoint` witness.
+
+```agda
+-- an endpoint packaged together with a proof that it is well-formed
+WFEndpointₛ : Set
+WFEndpointₛ = Σ Endpoint WFEndpoint
+
+-- lift Endpoint⊑ to well-formed endpoints
+_⊑EndpointWF_ : WFEndpointₛ → WFEndpointₛ → Set
+(e , _) ⊑EndpointWF (e' , _) = Endpoint⊑ e e'
+
+
+Endpoint⊑-preorder : IsPreorder _⊑EndpointWF_
+Endpoint⊑-preorder = record
+  { reflexive  =
+      λ { {x = (e , wf)} →
+          Endpoint⊑-refl wf }
+
+  ; transitive =
+      λ { {x = (e₀ , _)}
+           {y = (e₁ , _)}
+           {z = (e₂ , _)}
+           e₀⊑e₁ e₁⊑e₂ →
+           Endpoint⊑-trans e₀⊑e₁ e₁⊑e₂ }
+  }
+```
