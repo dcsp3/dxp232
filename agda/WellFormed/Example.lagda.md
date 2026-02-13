@@ -151,6 +151,7 @@ This ensures that the parameter is:
 wf-PathTodos : WFPath PathTodos (ParamId :: [])
 wf-PathTodos =
   wf-path
+    (uniq::_ notin[] uniq[])
     (all::_ here all[])
     (all::_ here all[])
 ```
@@ -190,9 +191,11 @@ wf-GetTodoEndpoint =
   wf-endpoint
     wf-PathTodos
     (all::_ wf-ParamId all[])
+    (uniq::_ notin[] uniq[])
     wf-BodyGetTodo
     (all::_ wf-RespOK
       (all::_ wf-RespNotFound all[]))
+    (uniq::_ (notin::_ (λ ()) notin[]) (uniq::_ notin[] uniq[]))
 ```
 
 This endpoint proof is entirely compositional: no global reasoning is required.

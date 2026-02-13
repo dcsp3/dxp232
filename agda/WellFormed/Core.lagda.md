@@ -118,8 +118,9 @@ The judgement `WFPath path params` enforces structural coherence between a path 
 
 1. **Every placeholder is declared**: for each `{x}` appearing in the path, there is a parameter with `location = path` and `name = x`.
 2. **No orphan path parameters**: every parameter declared with `location = path` appears as a placeholder `{x}` in the path.
+3. **No duplicate placeholders**: each `{x}` appears at most once in the path template.
 
-These two directions ensure the path template and its declared path parameters describe the same set of path variables. This mirrors the OpenAPI requirement that template expressions in a path MUST correspond to declared `in: path` parameters of the same name.
+These constraints ensure the path template and its declared path parameters describe the same set of path variables. This mirrors the OpenAPI requirement that template expressions in a path MUST correspond to declared `in: path` parameters of the same name.
 
 >This judgement does not enforce parameter typing (handled by `WFParameter`) and does not impose best practices or behavioural routing properties. It exists solely to rule out structurally incoherent path/parameter combinations before semantics and compatibility reasoning.
 
@@ -151,6 +152,7 @@ pathParamNames = paramNamesAt path
 data WFPath : Path → List Parameter → Set where
   wf-path :
       ∀ {p ps}
+    → Unique (pathPlaceholders p)
     → pathPlaceholders p ⊆ pathParamNames ps
     → pathParamNames ps ⊆ pathPlaceholders p
     → WFPath p ps
@@ -200,15 +202,30 @@ The judgement `WFEndpoint e` states that an endpoint is structurally coherent wh
 - each declared parameter is structurally valid (`WFParameter`)
 - its request body (if present by method) carries a well-formed schema (`WFBody`)
 - each response carries a well-formed schema (`WFResponse`)
+- parameter keys are unique (so parameters are not ambiguous)
+- response statuses are unique (so response lookup is not ambiguous)
 
 ```agda
+paramKey : Parameter → ParamLocation × String
+paramKey p = (Parameter.location p , Parameter.name p)
+
+paramKeys : List Parameter → List (ParamLocation × String)
+paramKeys [] = []
+paramKeys (p :: ps) = paramKey p :: paramKeys ps
+
+respKeys : List Response → List Status
+respKeys [] = []
+respKeys (response st _ :: rs) = st :: respKeys rs
+
 data WFEndpoint : Endpoint → Set where
   wf-endpoint :
     ∀ {e}
     → WFPath (Endpoint.route e) (Endpoint.parameters e)
     → All WFParameter (Endpoint.parameters e)
+    → Unique (paramKeys (Endpoint.parameters e))
     → WFBody (Endpoint.body e)
     → All WFResponse (Endpoint.responses e)
+    → Unique (respKeys (Endpoint.responses e))
     → WFEndpoint e
 ```
 
