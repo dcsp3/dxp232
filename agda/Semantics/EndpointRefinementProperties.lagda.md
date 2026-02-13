@@ -82,8 +82,8 @@ Body⊑Contra-refl :
     ∀ {m} {b : Body m}
   → WFBody b
   → Body⊑Contra refl b b
-Body⊑Contra-refl wf-nobody   = tt
-Body⊑Contra-refl wf-nobodyD  = tt
+Body⊑Contra-refl wf-nobody         = tt
+Body⊑Contra-refl wf-nobodyD        = tt
 Body⊑Contra-refl (wf-hasBody  wfS) = ⊑Co-refl wfS
 Body⊑Contra-refl (wf-hasBodyU wfS) = ⊑Co-refl wfS
 Body⊑Contra-refl (wf-hasBodyP wfS) = ⊑Co-refl wfS
@@ -155,3 +155,108 @@ Endpoint⊑-refl {e} wf@(wf-endpoint _ _ uniqParams wfBody wfResps uniqResps) =
 ---
 
 ## 2. Transitivity
+
+If `e₀` refines to `e₁` and `e₁` refines to `e₂`, then `e₀` refines to `e₂`.
+
+As in reflexivity, we prove this component-wise and then combine the results.
+
+### 2.1 Parameter transitivity
+
+At the level of a single parameter, transitivity is immediate: all fields are
+checked by equality (or weakening of required), and equality composes.
+
+```agda
+ReqWeakens-trans :
+    ∀ {a b c}
+  → ReqWeakens a b
+  → ReqWeakens b c
+  → ReqWeakens a c
+ReqWeakens-trans a≤b b≤c c≡true =
+  a≤b (b≤c c≡true)
+
+Param⊑Contra-trans :
+    ∀ {p q r}
+  → Param⊑Contra p q
+  → Param⊑Contra q r
+  → Param⊑Contra p r
+Param⊑Contra-trans
+  (loc≡₁ , (name≡₁ , (sch≡₁ , req≤₁)))
+  (loc≡₂ , (name≡₂ , (sch≡₂ , req≤₂)))
+  =
+  ( trans loc≡₁ loc≡₂
+  , ( trans name≡₁ name≡₂
+    , ( trans sch≡₁ sch≡₂
+      , ReqWeakens-trans req≤₁ req≤₂
+      )
+    )
+  )
+```
+
+### 2.2 Parameter list transitivity
+
+`Params⊑Contra` is defined by iterating over the old list and using lookup to
+align each old parameter with a corresponding new one. To compose two such
+proofs, we need one small helper: if a parameter can be looked up in the
+intermediate list, then the refinement proof for that intermediate list tells
+us how it maps forward.
+
+```agda
+Params⊑Contra-lookup :
+    ∀ {qs rs ℓ k q}
+  → Params⊑Contra qs rs
+  → lookupParam ℓ k qs ≡ just q
+  → Σ Parameter (λ r →
+       lookupParam ℓ k rs ≡ just r
+     × Param⊑Contra q r)
+Params⊑Contra-lookup {qs = []} tt ()
+Params⊑Contra-lookup {qs = q₀ :: qs} {rs} {ℓ} {k} {q}
+  ( (r₀ , (lkr₀ , q₀⊑r₀)) , rest )
+  lk
+  with ParamLocation≟ ℓ (Parameter.location q₀)
+... | no _ =
+  Params⊑Contra-lookup rest lk
+... | yes refl
+  with (k ≟ Parameter.name q₀)
+... | no _ =
+  Params⊑Contra-lookup rest lk
+... | yes refl =
+  let q₀≡q : q₀ ≡ q
+      q₀≡q = just-inj lk
+  in
+  r₀
+  , ( lkr₀
+    , subst (λ x → Param⊑Contra x r₀) q₀≡q q₀⊑r₀
+    )
+
+Params⊑Contra-trans :
+    ∀ {ps qs rs}
+  → Params⊑Contra ps qs
+  → Params⊑Contra qs rs
+  → Params⊑Contra ps rs
+Params⊑Contra-trans {ps = []} _ _ = tt
+Params⊑Contra-trans {ps = p :: ps} {qs} {rs}
+  ( (q , (lkq , p⊑q)) , ps⊑qs )
+  qs⊑rs
+  =
+  ( r
+  , ( lkr
+    , Param⊑Contra-trans p⊑q q⊑r
+    )
+  )
+  , Params⊑Contra-trans ps⊑qs qs⊑rs
+  where
+    r-wit :
+      Σ Parameter (λ r →
+           lookupParam (Parameter.location p) (Parameter.name p) rs ≡ just r
+         × Param⊑Contra q r)
+    r-wit = Params⊑Contra-lookup qs⊑rs lkq
+
+    r   : Parameter
+    r   = fst r-wit
+
+    lkr : lookupParam (Parameter.location p) (Parameter.name p) rs ≡ just r
+    lkr = fst (snd r-wit)
+
+    q⊑r : Param⊑Contra q r
+    q⊑r = snd (snd r-wit)
+```
