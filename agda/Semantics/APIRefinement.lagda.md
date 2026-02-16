@@ -15,6 +15,7 @@ open import Syntax.Decidable
 
 open import WellFormed.Core
 
+open import Semantics.Variance
 open import Semantics.SchemaRefinement
 open import Semantics.EndpointRefinement
 
@@ -151,6 +152,52 @@ lookupEndpoint-there {h} {r} {m} {es} {e} head≢ ih
   with Method≟ m (Endpoint.method h)
 ...   | no _ = ih
 ...   | yes refl = ⊥-elim (head≢ refl)
+```
+
+---
+
+## 3. Component Refinement
+
+Components are aligned by name.
+For each old component, the new API must provide a schema that refines it (covariantly). Extra components in the new API are allowed.
+
+```agda
+Components⊑ :
+  List (String × Schema)
+  → List (String × Schema)
+  → Set
+
+Components⊑ [] new = ⊤
+
+Components⊑ ((k , s) :: cs) new =
+  (Σ Schema (λ t →
+       lookupComponent k new ≡ just t
+     × Schema⊑ Co s t))
+  × Components⊑ cs new
+```
+
+---
+
+## 4. Endpoint List Refinement
+
+For each old endpoint, the new API must provide a matching endpoint that refines it. Extra endpoints in the new API are allowed.
+
+```agda
+Endpoints⊑ :
+  List Endpoint
+  → List Endpoint
+  → Set
+
+Endpoints⊑ [] new = ⊤
+
+Endpoints⊑ (e :: es) new =
+  (Σ Endpoint (λ e' →
+       lookupEndpoint
+         (Endpoint.route e)
+         (Endpoint.method e)
+         new ≡ just e'
+     × Endpoint⊑ e e'))
+  × Endpoints⊑ es new
 ```
 
 ---
