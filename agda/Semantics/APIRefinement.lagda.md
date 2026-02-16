@@ -202,3 +202,25 @@ Endpoints⊑ (e :: es) new =
 
 ---
 
+## 5. API Refinement
+
+An API `aNew` safely refines `aOld` when:
+
+- both APIs are well-formed,
+- all old components are preserved and refined,
+- all old endpoints are preserved and refined.
+
+```agda
+data API⊑ : API → API → Set where
+  ⊑-api :
+      ∀ {aOld aNew}
+      → WFAPI aOld
+      → WFAPI aNew
+      → Components⊑
+          (API.components aOld)
+          (API.components aNew)
+      → Endpoints⊑
+          (API.paths aOld)
+          (API.paths aNew)
+      → API⊑ aOld aNew
+```
