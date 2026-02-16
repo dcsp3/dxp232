@@ -16,8 +16,11 @@ module Semantics.APIRefinementProperties where
 
 open import Prelude
 open import Syntax.Syntax
+open import Syntax.Decidable
 
 open import WellFormed.Core
+
+open import Semantics.Variance
 
 open import Semantics.SchemaRefinement
 open import Semantics.SchemaRefinementProperties
@@ -150,4 +153,180 @@ API⊑-refl
 
 ---
 
+## 2. Transitivity
 
+API refinement composes across versions.
+
+If an API `a₀` safely refines `a₁`, and `a₁` safely refines `a₂`, then `a₀` safely refines `a₂`.
+
+As in the lower layers, the proof proceeds structurally. We first establish transitivity for component refinement and endpoint refinement over lists, then combine them into the main API-level result.
+
+The key step for components is transporting lookup across an intermediate list: if a component is preserved from `a₀` to `a₁`, and from `a₁` to `a₂`, then it is preserved from `a₀` to `a₂`.
+
+---
+
+### 2.1 Transporting component lookup
+
+To compose component refinement, we must transport lookup across an intermediate component list.
+
+If a component `(k , s)` appears in `cs`, and `cs ⊑ ds`, then looking up `k` in `ds` yields a schema `t` such that `s` refines `t`.
+
+```agda
+Components⊑-lookup :
+    ∀ {cs ds k s}
+  → Components⊑ cs ds
+  → lookupComponent k cs ≡ just s
+  → Σ Schema (λ t →
+       lookupComponent k ds ≡ just t
+     × Schema⊑ Co s t)
+
+Components⊑-lookup {cs = []} _ ()
+
+Components⊑-lookup
+  {cs = (k₀ , s₀) :: cs'} {ds} {k} {s}
+  ( (t₀ , (lkt₀ , r₀)) , rest )
+  lk
+  with k ≟ k₀
+... | no _ =
+  Components⊑-lookup rest lk
+... | yes refl =
+  let s₀≡s = just-inj lk in
+  t₀ , ( lkt₀
+       , subst (λ x → Schema⊑ Co x t₀) s₀≡s r₀ )
+```
+
+---
+
+### 2.2 Component transitivity
+
+Component refinement composes by transporting each old component through the intermediate API and composing schema refinement.
+
+```agda
+Components⊑-trans :
+    ∀ {cs ds es}
+  → Components⊑ cs ds
+  → Components⊑ ds es
+  → Components⊑ cs es
+
+Components⊑-trans {cs = []} _ _ = tt
+
+Components⊑-trans
+  {cs = (k , s₀) :: cs'} {ds} {es}
+  ( (s₁ , (lk₁ , r₀₁)) , rest₀₁ )
+  ds⊑es
+  =
+  ( s₂ , (lk₂ , ⊑Co-trans r₀₁ r₁₂) )
+  , Components⊑-trans rest₀₁ ds⊑es
+  where
+    pushed :
+      Σ Schema (λ t →
+           lookupComponent k es ≡ just t
+         × Schema⊑ Co s₁ t)
+
+    pushed = Components⊑-lookup ds⊑es lk₁
+
+    s₂  = fst pushed
+    lk₂ = fst (snd pushed)
+    r₁₂ = snd (snd pushed)
+```
+
+---
+
+### 2.3 Transporting endpoint lookup
+
+If an endpoint is preserved from `es` to `fs`, and we can look it up in `es`, then it can also be looked up in `fs`, with a refining endpoint.
+
+```agda
+Endpoints⊑-lookup :
+    ∀ {es fs r m e}
+  → Endpoints⊑ es fs
+  → lookupEndpoint r m es ≡ just e
+  → Σ Endpoint (λ e' →
+       lookupEndpoint r m fs ≡ just e'
+     × Endpoint⊑ e e')
+
+Endpoints⊑-lookup {es = []} _ ()
+
+Endpoints⊑-lookup
+  {es = h :: es'} {fs} {r} {m} {e}
+  ( (e₀ , (lk₀ , r₀)) , rest )
+  lk
+  with Path≟ r (Endpoint.route h)
+... | no _ =
+  Endpoints⊑-lookup rest lk
+... | yes refl
+  with Method≟ m (Endpoint.method h)
+...   | no _ =
+        Endpoints⊑-lookup rest lk
+...   | yes refl =
+        let h≡e = just-inj lk in
+        e₀ , ( lk₀
+             , subst (λ x → Endpoint⊑ x e₀) h≡e r₀ )
+```
+
+---
+
+### 2.4 Endpoint transitivity
+
+Endpoint refinement over lists composes in the same way: each old endpoint is transported through the intermediate API and its refinement witnesses are composed using `Endpoint⊑-trans`.
+
+```agda
+Endpoints⊑-trans :
+    ∀ {es fs gs}
+  → Endpoints⊑ es fs
+  → Endpoints⊑ fs gs
+  → Endpoints⊑ es gs
+
+Endpoints⊑-trans {es = []} _ _ = tt
+
+Endpoints⊑-trans
+  {es = e :: es'} {fs} {gs}
+  ( (e₁ , (lk₁ , r₀₁)) , rest₀₁ )
+  fs⊑gs
+  =
+  ( e₂ , (lk₂ , Endpoint⊑-trans r₀₁ r₁₂) )
+  , Endpoints⊑-trans rest₀₁ fs⊑gs
+  where
+    pushed :
+      Σ Endpoint (λ e' →
+           lookupEndpoint
+             (Endpoint.route e)
+             (Endpoint.method e)
+             gs ≡ just e'
+         × Endpoint⊑ e₁ e')
+
+    pushed =
+      Endpoints⊑-lookup
+        fs⊑gs
+        lk₁
+
+    e₂  = fst pushed
+    lk₂ = fst (snd pushed)
+    r₁₂ = snd (snd pushed)
+```
+
+---
+
+### 2.5 API transitivity
+
+Finally, API refinement composes when both component refinement and endpoint refinement compose.
+
+```agda
+API⊑-trans :
+  ∀ {a₀ a₁ a₂}
+  → API⊑ a₀ a₁
+  → API⊑ a₁ a₂
+  → API⊑ a₀ a₂
+
+API⊑-trans
+  (⊑-api wf₀ wf₁ comps₀₁ paths₀₁)
+  (⊑-api _   wf₂ comps₁₂ paths₁₂)
+  =
+  ⊑-api
+    wf₀
+    wf₂
+    (Components⊑-trans comps₀₁ comps₁₂)
+    (Endpoints⊑-trans  paths₀₁ paths₁₂)
+```
+
+---
