@@ -330,3 +330,33 @@ API⊑-trans
 ```
 
 ---
+
+## 3. API refinement as a preorder
+
+We now package API refinement as a preorder over well-formed APIs.
+
+```agda
+WFAPIₛ : Set
+WFAPIₛ = Σ API WFAPI
+
+_⊑APIWF_ : WFAPIₛ → WFAPIₛ → Set
+(a , _) ⊑APIWF (b , _) = API⊑ a b
+```
+
+Reflexivity and transitivity follow directly from the previously established lemmas.
+
+```agda
+API⊑-preorder : IsPreorder _⊑APIWF_
+API⊑-preorder = record
+  { reflexive  =
+      λ { {x = (a , wf)} →
+          API⊑-refl wf }
+
+  ; transitive =
+      λ { {x = (a₀ , _)}
+           {y = (a₁ , _)}
+           {z = (a₂ , _)}
+           r₀₁ r₁₂ →
+          API⊑-trans r₀₁ r₁₂ }
+  }
+```
