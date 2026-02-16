@@ -19,7 +19,7 @@ This module is deliberately conservative. It does not enforce best practices or 
 module WellFormed.Core where
 
 open import Prelude
-open import Syntax
+open import Syntax.Syntax
 ```
 
 ## 1. Well-formed Schemas

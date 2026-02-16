@@ -23,7 +23,9 @@ This file formalises that judgement.
 module Semantics.EndpointRefinement where
 
 open import Prelude
-open import Syntax
+open import Syntax.Syntax
+open import Syntax.Decidable
+
 open import WellFormed.Core
 
 open import Semantics.Variance
@@ -43,54 +45,14 @@ Endpoint refinement needs two things:
 1. a variance-aware use of schema refinement (requests contra, responses co)
 2. a way to align parameters and responses across two endpoints
 
-For the second part we use simple lookup functions, and those require decidable
-equality on `ParamLocation` and `Status`.
+For the second part we use simple lookup functions, using decidable
+equalities on `ParamLocation` and `Status`.
 
 As with schema refinement, we only relate well-formed endpoints. The
 well-formedness invariant ensures that parameter keys and response status
 codes are unique, so that the lookup-based definitions below are unambiguous.
 
-### 1.1 Decidable equality
-
-```agda
-ParamLocation≟ : (a b : ParamLocation) → Dec (a ≡ b)
-ParamLocation≟ path  path  = yes refl
-ParamLocation≟ query query = yes refl
-ParamLocation≟ path  query = no (λ ())
-ParamLocation≟ query path  = no (λ ())
-
-Status≟ : (a b : Status) → Dec (a ≡ b)
-Status≟ OK         OK         = yes refl
-Status≟ NotFound   NotFound   = yes refl
-Status≟ BadRequest BadRequest = yes refl
-Status≟ NoContent  NoContent  = yes refl
-
-Status≟ OK         NotFound   = no (λ ())
-Status≟ OK         BadRequest = no (λ ())
-Status≟ OK         NoContent  = no (λ ())
-
-Status≟ NotFound   OK         = no (λ ())
-Status≟ NotFound   BadRequest = no (λ ())
-Status≟ NotFound   NoContent  = no (λ ())
-
-Status≟ BadRequest OK         = no (λ ())
-Status≟ BadRequest NotFound   = no (λ ())
-Status≟ BadRequest NoContent  = no (λ ())
-
-Status≟ NoContent  OK         = no (λ ())
-Status≟ NoContent  NotFound   = no (λ ())
-Status≟ NoContent  BadRequest = no (λ ())
-
-Status≟-refl : ∀ {st} → Status≟ st st ≡ yes refl
-Status≟-refl {OK}         = refl
-Status≟-refl {NotFound}   = refl
-Status≟-refl {BadRequest} = refl
-Status≟-refl {NoContent}  = refl
-```
-
----
-
-### 1.2 Lookup helpers
+### 1.1 Lookup helpers
 
 We align list-based endpoint components by looking up corresponding entries.
 
@@ -118,7 +80,7 @@ lookupResp st (response st' s :: rs) with Status≟ st st'
 
 ---
 
-### 1.3 Lookup computation lemmas
+### 1.2 Lookup computation lemmas
 
 
 The refinement relations below use lookup to align list-based components.

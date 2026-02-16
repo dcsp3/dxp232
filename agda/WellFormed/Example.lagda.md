@@ -4,9 +4,10 @@
 module WellFormed.Example where
 
 open import Prelude
-open import Syntax
+open import Syntax.Syntax
+open import Syntax.ExampleTodoAPI
+
 open import WellFormed.Core
-open import ExampleTodoAPI
 ```
 
 ## A Well-Formed Todo API

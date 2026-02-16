@@ -102,6 +102,12 @@ Status≟ BadRequest NoContent  = no (λ ())
 Status≟ NoContent  OK         = no (λ ())
 Status≟ NoContent  NotFound   = no (λ ())
 Status≟ NoContent  BadRequest = no (λ ())
+
+Status≟-refl : ∀ {st} → Status≟ st st ≡ yes refl
+Status≟-refl {OK}         = refl
+Status≟-refl {NotFound}   = refl
+Status≟-refl {BadRequest} = refl
+Status≟-refl {NoContent}  = refl
 ```
 
 ---
