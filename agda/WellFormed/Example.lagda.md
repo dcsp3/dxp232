@@ -206,11 +206,25 @@ This endpoint proof is entirely compositional: no global reasoning is required.
 Finally, the full API is well-formed once all component schemas and endpoints are.
 
 ```agda
+postulate
+  Todo≢Error : "Todo" ≢ "Error"
+
+components-unique : Unique (componentKeys TodoAPI)
+components-unique =
+  uniq::_ (notin::_ Todo≢Error notin[])
+    (uniq::_ notin[] uniq[])
+
+endpoints-unique : Unique (endpointKeys (API.paths TodoAPI))
+endpoints-unique =
+  uniq::_ notin[] uniq[]
+
 wf-TodoAPI : WFAPI TodoAPI
 wf-TodoAPI =
   wf-api
     wf-components
+    components-unique
     (all::_ wf-GetTodoEndpoint all[])
+    endpoints-unique
   where
     wf-components :
       All WFSchema (values (API.components TodoAPI))
