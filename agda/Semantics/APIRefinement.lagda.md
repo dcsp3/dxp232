@@ -3,8 +3,8 @@
 An API packages together all endpoints and reusable schemas that make up a specification.
 
 We define API refinement structurally. An API refines another when:
-- every existing endpoint continues to behave safely under evolution, and
-- every declared component schema evolves safely.
+- every declared component schema evolves safely, and
+- every existing endpoint continues to behave safely under evolution.
 
 ```agda
 module Semantics.APIRefinement where
@@ -22,18 +22,71 @@ open Σ using (fst ; snd)
 ```
 
 Since APIs are collections rather than single objects, refinement is defined by alignment via keys:
-- endpoints are matched by their route and method,
-- components are matched by their name.
+- components are matched by their name,
+- endpoints are matched by their route and method.
 
 The definition lifts the refinement relations already established for schemas and endpoints to the top level.
 
+## 1. Component Lookup
+
+Component schemas are aligned by their declared name.
+
+We therefore define lookup over the `components` list by matching on the component key (`String`). This mirrors the lookup functions used at lower layers and will be used to align component schemas across API versions.
+
+```agda
+lookupComponent :
+  String → List (String × Schema) → Maybe Schema
+
+lookupComponent k [] = nothing
+
+lookupComponent k ((k' , s) :: cs)
+  with k ≟ k'
+... | yes _ = just s
+... | no  _ = lookupComponent k cs
+```
+
 ---
 
-## 1. Endpoint Lookup
+### 1.1 Lookup of the head element
+
+If we search for the key at the head of the list, lookup succeeds immediately.
+
+```agda
+lookupComponent-here :
+  ∀ {k s cs}
+  → lookupComponent k ((k , s) :: cs) ≡ just s
+
+lookupComponent-here {k} {s} {cs}
+  with k ≟ k
+... | yes _  = refl
+... | no neq = ⊥-elim (neq refl)
+```
+
+---
+
+### 1.2 Lookup past a different head
+
+If the head key does not match the one we are searching for, lookup proceeds into the tail.
+
+```agda
+lookupComponent-there :
+    ∀ {k k₀ s₀ cs t}
+  → k₀ ≢ k
+  → lookupComponent k cs ≡ just t
+  → lookupComponent k ((k₀ , s₀) :: cs) ≡ just t
+
+lookupComponent-there {k} {k₀} {s₀} {cs} {t} k₀≢k ih
+  with k ≟ k₀
+... | yes k≡k₀ = ⊥-elim (k₀≢k (sym k≡k₀))
+... | no  _    = ih
+```
+
+---
+
+
+## 2. Endpoint Lookup
 
 To define refinement over lists of endpoints, we first define lookup by `(route , method)`.
-
-This mirrors the lookup functions used for parameters and responses in the lower layers.
 
 ```agda
 lookupEndpoint :
@@ -55,7 +108,7 @@ We now establish its basic structural properties.
 
 ---
 
-### 1.1 Lookup of the head element
+### 2.1 Lookup of the head element
 
 If we search for the route and method of the head element, lookup returns that element.
 
@@ -79,7 +132,7 @@ lookupEndpoint-here {e} {es}
 
 ---
 
-### 1.2 Lookup past a different head
+### 2.2 Lookup past a different head
 
 If either the route or the method does not match, lookup proceeds to the tail.
 
@@ -101,3 +154,4 @@ lookupEndpoint-there {h} {r} {m} {es} {e} head≢ ih
 ```
 
 ---
+
