@@ -24,7 +24,8 @@ def main():
         if "components" in spec and "schemas" in spec["components"]:
             for name, schema in spec["components"]["schemas"].items():
                 print(f"\nTranslating component: {name}")
-                translated = translate_schema(schema)
+                components = spec.get("components", {}).get("schemas", {})
+                translated = translate_schema(schema, components)
                 print("  -> OK:", translated)
 
         print("\nTranslation stage completed.")
