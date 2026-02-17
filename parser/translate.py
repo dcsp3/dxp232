@@ -39,6 +39,33 @@ def translate_schema(raw: dict) -> Schema:
             examples=[],
         )
 
+    # Object
+    if base_type == "object":
+        properties = []
+        raw_props = raw.get("properties", {})
+
+        if not isinstance(raw_props, dict):
+            raise TranslationError("'properties' must be an object.")
+
+        for prop_name, prop_schema in raw_props.items():
+            translated_prop = translate_schema(prop_schema)
+            properties.append((prop_name, translated_prop))
+
+        required = raw.get("required", [])
+        if not isinstance(required, list):
+            raise TranslationError("'required' must be a list.")
+
+        return Schema(
+            type="object",
+            properties=properties,
+            required=required,
+            items=None,
+            enum=None,
+            default=None,
+            description=None,
+            examples=[],
+        )
+
     raise TranslationError(
         f"Base type '{base_type}' not supported yet"
     )
