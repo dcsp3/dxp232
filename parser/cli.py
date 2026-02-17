@@ -12,15 +12,15 @@ def main():
 
     try:
         spec = load_spec(path)
-        print("✔ YAML loaded successfully.")
+        print("YAML loaded successfully.")
 
         basic_openapi_sanity_check(spec)
-        print("✔ Basic OpenAPI structure looks valid.")
+        print("Basic OpenAPI structure looks valid.")
 
         print("Top-level keys:", list(spec.keys()))
 
     except OpenAPILoadError as e:
-        print(f"✘ Error: {e}")
+        print(f"Error: {e}")
         sys.exit(1)
 
 
