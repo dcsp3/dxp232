@@ -1,4 +1,4 @@
-from dsl_ast import Schema, Path, PathSegment, Body, Endpoint, API
+from dsl_ast import Schema, Path, PathSegment, Body, Endpoint, Parameter, API
 
 ALLOWED_BASE_TYPES = {
     "integer",
@@ -144,24 +144,51 @@ def default_body_for_method(method: str) -> Body:
 
     raise TranslationError(f"Unsupported method for body: {method}")
 
+def translate_parameter(raw_param: dict) -> Parameter:
+    name = raw_param.get("name")
+    location = raw_param.get("in")
+    required = raw_param.get("required", False)
+
+    if location not in {"path", "query"}:
+        raise TranslationError(f"Unsupported parameter location: {location}")
+
+    if "schema" not in raw_param:
+        raise TranslationError(f"Parameter '{name}' missing schema.")
+
+    schema_obj = raw_param["schema"]
+
+    if "type" not in schema_obj:
+        raise TranslationError(f"Parameter '{name}' schema missing type.")
+
+    base_type = schema_obj["type"]
+
+    if base_type not in {"integer", "string", "boolean", "number"}:
+        raise TranslationError(
+            f"Parameter '{name}' must have primitive type."
+        )
+
+    # path params must be required
+    if location == "path" and not required:
+        raise TranslationError(
+            f"Path parameter '{name}' must be required."
+        )
+
+    return Parameter(
+        name=name,
+        location=location,
+        required=required,
+        schema=base_type,
+    )
+
 def translate_api(spec: dict) -> API:
     components_dict = spec.get("components", {}).get("schemas", {})
 
     translated_components = []
-
     for name, raw_schema in components_dict.items():
         translated_schema = translate_schema(raw_schema, components_dict)
         translated_components.append((name, translated_schema))
 
-        translated_paths = []
-
-    raw_paths = spec.get("paths", {})
-
-    for path_str in raw_paths.keys():
-        translated_path = translate_path(path_str)
-
     translated_paths = []
-
     raw_paths = spec.get("paths", {})
 
     for path_str, path_item in raw_paths.items():
@@ -170,10 +197,15 @@ def translate_api(spec: dict) -> API:
         for method_str, operation in path_item.items():
             method = translate_method(method_str)
 
+            raw_parameters = operation.get("parameters", [])
+            translated_parameters = [
+                translate_parameter(p) for p in raw_parameters
+            ]
+
             endpoint = Endpoint(
                 route=translated_path,
                 method=method,
-                parameters=[],
+                parameters=translated_parameters,
                 body=default_body_for_method(method),
                 responses=[],
             )
