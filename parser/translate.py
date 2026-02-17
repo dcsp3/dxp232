@@ -39,7 +39,7 @@ def translate_schema(raw: dict) -> Schema:
             examples=[],
         )
 
-    # Object
+    # objects
     if base_type == "object":
         properties = []
         raw_props = raw.get("properties", {})
@@ -60,6 +60,24 @@ def translate_schema(raw: dict) -> Schema:
             properties=properties,
             required=required,
             items=None,
+            enum=None,
+            default=None,
+            description=None,
+            examples=[],
+        )
+    
+    # arrays
+    if base_type == "array":
+        if "items" not in raw:
+            raise TranslationError("Array schema missing 'items'.")
+
+        translated_items = translate_schema(raw["items"])
+
+        return Schema(
+            type="array",
+            properties=[],
+            required=[],
+            items=translated_items,
             enum=None,
             default=None,
             description=None,
