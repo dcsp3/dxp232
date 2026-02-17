@@ -1,6 +1,7 @@
 import sys
 
 from loader import load_spec, basic_openapi_sanity_check, OpenAPILoadError
+from translate import translate_schema, TranslationError
 
 
 def main():
@@ -19,7 +20,16 @@ def main():
 
         print("Top-level keys:", list(spec.keys()))
 
-    except OpenAPILoadError as e:
+        # translate component schemas
+        if "components" in spec and "schemas" in spec["components"]:
+            for name, schema in spec["components"]["schemas"].items():
+                print(f"\nTranslating component: {name}")
+                translated = translate_schema(schema)
+                print("  -> OK:", translated)
+
+        print("\nTranslation stage completed.")
+
+    except (OpenAPILoadError, TranslationError) as e:
         print(f"Error: {e}")
         sys.exit(1)
 
