@@ -1,4 +1,4 @@
-from dsl_ast import Schema
+from dsl_ast import Schema, API
 
 ALLOWED_BASE_TYPES = {
     "integer",
@@ -104,4 +104,21 @@ def translate_schema(raw: dict, components: dict) -> Schema:
 
     raise TranslationError(
         f"Base type '{base_type}' not supported yet"
+    )
+
+def translate_api(spec: dict) -> API:
+    components_dict = spec.get("components", {}).get("schemas", {})
+
+    translated_components = []
+
+    for name, raw_schema in components_dict.items():
+        translated_schema = translate_schema(raw_schema, components_dict)
+        translated_components.append((name, translated_schema))
+
+    # will implement endpoint translation next
+    translated_paths = []
+
+    return API(
+        paths=translated_paths,
+        components=translated_components,
     )
