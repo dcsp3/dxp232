@@ -1,4 +1,4 @@
-from dsl_ast import Schema, Path, PathSegment, Body, Endpoint, Parameter, API
+from dsl_ast import Schema, Path, PathSegment, Body, Endpoint, Parameter, Response, API
 
 ALLOWED_BASE_TYPES = {
     "integer",
@@ -9,11 +9,17 @@ ALLOWED_BASE_TYPES = {
     "array",
 }
 
+STATUS_MAP = {
+    "200": "OK",
+    "400": "BadRequest",
+    "404": "NotFound",
+    "204": "NoContent",
+}
+
 ALLOWED_METHODS = {"get", "post", "put", "delete", "patch"}
 
 class TranslationError(Exception):
     pass
-
 
 def translate_schema(raw: dict, components: dict) -> Schema:
     if not isinstance(raw, dict):
@@ -124,6 +130,40 @@ def translate_path(path_str: str) -> Path:
 
     return Path(segments=segments)
 
+def translate_request_body(method: str, operation: dict, components: dict) -> Body:
+    if method in {"GET", "DELETE"}:
+        return default_body_for_method(method)
+
+    if "requestBody" not in operation:
+        raise TranslationError(f"{method} operation missing requestBody.")
+
+    request_body = operation["requestBody"]
+
+    content = request_body.get("content", {})
+    json_content = content.get("application/json")
+
+    if json_content is None:
+        raise TranslationError(
+            f"{method} requestBody missing application/json content."
+        )
+
+    if "schema" not in json_content:
+        raise TranslationError(
+            f"{method} requestBody missing schema."
+        )
+
+    raw_schema = json_content["schema"]
+    translated_schema = translate_schema(raw_schema, components)
+
+    if method == "POST":
+        return Body(kind="HasBody", schema=translated_schema)
+    if method == "PUT":
+        return Body(kind="HasBodyU", schema=translated_schema)
+    if method == "PATCH":
+        return Body(kind="HasBodyP", schema=translated_schema)
+
+    raise TranslationError(f"Unsupported method for body: {method}")
+
 def translate_method(method_str: str) -> str:
     if method_str.lower() not in ALLOWED_METHODS:
         raise TranslationError(f"Unsupported HTTP method: {method_str}")
@@ -180,6 +220,44 @@ def translate_parameter(raw_param: dict) -> Parameter:
         schema=base_type,
     )
 
+def translate_responses(raw_responses: dict, components: dict) -> list[Response]:
+    translated = []
+
+    for status_code, response_obj in raw_responses.items():
+
+        if status_code not in STATUS_MAP:
+            raise TranslationError(
+                f"Unsupported status code: {status_code}"
+            )
+
+        dsl_status = STATUS_MAP[status_code]
+
+        content = response_obj.get("content", {})
+        json_content = content.get("application/json")
+
+        if json_content is None:
+            raise TranslationError(
+                f"Response {status_code} missing application/json content."
+            )
+
+        if "schema" not in json_content:
+            raise TranslationError(
+                f"Response {status_code} missing schema."
+            )
+
+        raw_schema = json_content["schema"]
+
+        translated_schema = translate_schema(raw_schema, components)
+
+        translated.append(
+            Response(
+                status=dsl_status,
+                schema=translated_schema,
+            )
+        )
+
+    return translated
+
 def translate_api(spec: dict) -> API:
     components_dict = spec.get("components", {}).get("schemas", {})
 
@@ -202,12 +280,15 @@ def translate_api(spec: dict) -> API:
                 translate_parameter(p) for p in raw_parameters
             ]
 
+            raw_responses = operation.get("responses", {})
+            translated_responses = translate_responses(raw_responses, components_dict)
+
             endpoint = Endpoint(
                 route=translated_path,
                 method=method,
                 parameters=translated_parameters,
-                body=default_body_for_method(method),
-                responses=[],
+                body=translate_request_body(method, operation, components_dict),
+                responses=translated_responses,
             )
 
             translated_paths.append(endpoint)
