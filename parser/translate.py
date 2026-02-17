@@ -1,14 +1,5 @@
 from dsl_ast import Schema, Path, PathSegment, Body, Endpoint, Parameter, Response, API
 
-ALLOWED_BASE_TYPES = {
-    "integer",
-    "string",
-    "boolean",
-    "number",
-    "object",
-    "array",
-}
-
 STATUS_MAP = {
     "200": "OK",
     "400": "BadRequest",
@@ -37,21 +28,12 @@ def translate_schema(raw: dict, components: dict) -> Schema:
         if schema_name not in components:
             raise TranslationError(f"Referenced schema '{schema_name}' not found.")
 
-        referenced_schema = components[schema_name]
-
         # recursively translate the referenced schema
-        return translate_schema(referenced_schema, components)
-
-
-    if "type" not in raw:
-        raise TranslationError("Schema missing 'type' field.")
+        return translate_schema(components[schema_name], components)
 
     base_type = raw["type"]
 
-    if base_type not in ALLOWED_BASE_TYPES:
-        raise TranslationError(f"Unsupported base type: {base_type}")
-
-    # primitive only for now
+    # primitive
     if base_type in {"integer", "string", "boolean", "number"}:
         return Schema(
             type=base_type,
@@ -261,15 +243,19 @@ def translate_responses(raw_responses: dict, components: dict) -> list[Response]
 def translate_api(spec: dict) -> API:
     components_dict = spec.get("components", {}).get("schemas", {})
 
-    translated_components = []
-    for name, raw_schema in components_dict.items():
-        translated_schema = translate_schema(raw_schema, components_dict)
-        translated_components.append((name, translated_schema))
+    translated_components = [
+        (name, translate_schema(raw_schema, components_dict))
+        for name, raw_schema in components_dict.items()
+    ]
 
     translated_paths = []
     raw_paths = spec.get("paths", {})
 
     for path_str, path_item in raw_paths.items():
+
+        if "parameters" in path_item:
+            raise TranslationError("Path-level parameters not supported.")
+
         translated_path = translate_path(path_str)
 
         for method_str, operation in path_item.items():
