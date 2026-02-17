@@ -1,4 +1,4 @@
-from dsl_ast import Schema, API
+from dsl_ast import Schema, Path, PathSegment, Body, Endpoint, API
 
 ALLOWED_BASE_TYPES = {
     "integer",
@@ -9,6 +9,7 @@ ALLOWED_BASE_TYPES = {
     "array",
 }
 
+ALLOWED_METHODS = {"get", "post", "put", "delete", "patch"}
 
 class TranslationError(Exception):
     pass
@@ -106,6 +107,43 @@ def translate_schema(raw: dict, components: dict) -> Schema:
         f"Base type '{base_type}' not supported yet"
     )
 
+def translate_path(path_str: str) -> Path:
+    if not path_str.startswith("/"):
+        raise TranslationError(f"Invalid path format: {path_str}")
+
+    segments = []
+
+    parts = path_str.strip("/").split("/")
+
+    for part in parts:
+        if part.startswith("{") and part.endswith("}"):
+            param_name = part[1:-1]
+            segments.append(PathSegment(kind="param", value=param_name))
+        else:
+            segments.append(PathSegment(kind="lit", value=part))
+
+    return Path(segments=segments)
+
+def translate_method(method_str: str) -> str:
+    if method_str.lower() not in ALLOWED_METHODS:
+        raise TranslationError(f"Unsupported HTTP method: {method_str}")
+
+    return method_str.upper()
+
+def default_body_for_method(method: str) -> Body:
+    if method == "GET":
+        return Body(kind="NoBody", schema=None)
+    if method == "DELETE":
+        return Body(kind="NoBodyD", schema=None)
+    if method == "POST":
+        return Body(kind="HasBody", schema=None)
+    if method == "PUT":
+        return Body(kind="HasBodyU", schema=None)
+    if method == "PATCH":
+        return Body(kind="HasBodyP", schema=None)
+
+    raise TranslationError(f"Unsupported method for body: {method}")
+
 def translate_api(spec: dict) -> API:
     components_dict = spec.get("components", {}).get("schemas", {})
 
@@ -115,8 +153,32 @@ def translate_api(spec: dict) -> API:
         translated_schema = translate_schema(raw_schema, components_dict)
         translated_components.append((name, translated_schema))
 
-    # will implement endpoint translation next
+        translated_paths = []
+
+    raw_paths = spec.get("paths", {})
+
+    for path_str in raw_paths.keys():
+        translated_path = translate_path(path_str)
+
     translated_paths = []
+
+    raw_paths = spec.get("paths", {})
+
+    for path_str, path_item in raw_paths.items():
+        translated_path = translate_path(path_str)
+
+        for method_str, operation in path_item.items():
+            method = translate_method(method_str)
+
+            endpoint = Endpoint(
+                route=translated_path,
+                method=method,
+                parameters=[],
+                body=default_body_for_method(method),
+                responses=[],
+            )
+
+            translated_paths.append(endpoint)
 
     return API(
         paths=translated_paths,
