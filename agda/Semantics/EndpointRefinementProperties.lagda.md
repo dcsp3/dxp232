@@ -15,7 +15,9 @@ of safe API evolution.
 module Semantics.EndpointRefinementProperties where
 
 open import Prelude
-open import Syntax
+open import Syntax.Syntax
+open import Syntax.Decidable
+
 open import WellFormed.Core
 
 open import Semantics.Variance

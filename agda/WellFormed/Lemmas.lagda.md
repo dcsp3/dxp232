@@ -15,7 +15,7 @@ The lemmas are organised into two complementary groups:
 module WellFormed.Lemmas where
 
 open import Prelude
-open import Syntax
+open import Syntax.Syntax
 open import WellFormed.Core
 ```
 

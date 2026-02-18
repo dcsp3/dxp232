@@ -16,7 +16,7 @@ The syntax is grouped as follows:
 ---
 
 ```agda
-module Syntax where
+module Syntax.Syntax where
 
 open import Prelude
 ```

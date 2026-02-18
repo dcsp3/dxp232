@@ -3,10 +3,10 @@
 In this module we provide an example of a direct translation for a minimal OpenAPI 3.1 Todo API document into our DSL's syntax (defined in [`Syntax.lagda.md`](./Syntax.lagda.md)).
 
 ```agda
-module ExampleTodoAPI where
+module Syntax.ExampleTodoAPI where
 
 open import Prelude
-open import Syntax
+open import Syntax.Syntax
 ```
 
 ---

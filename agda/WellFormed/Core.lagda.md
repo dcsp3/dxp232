@@ -19,7 +19,7 @@ This module is deliberately conservative. It does not enforce best practices or 
 module WellFormed.Core where
 
 open import Prelude
-open import Syntax
+open import Syntax.Syntax
 ```
 
 ## 1. Well-formed Schemas
@@ -231,14 +231,32 @@ data WFEndpoint : Endpoint → Set where
 
 ## 7. Well-formed APIs
 
-An `API` specification bundles together reusable component schemas and the collection of defined path operations. Well-formedness at the API level is compositional: an API is well-formed when all of its component schemas are well-formed and all of its paths (endpoints) are well-formed.
+An `API` specification bundles together reusable component schemas and the collection of defined path operations.
+
+Well-formedness at the API level extends the compositional structure of lower layers. An API is well-formed when:
+- all component schemas are well-formed,
+- component names are unique,
+- all endpoints are well-formed,
+- endpoint identity keys `(route , method)` are unique.
 
 ```agda
+componentKeys : API → List String
+componentKeys api = keys (API.components api)
+
+endpointKey : Endpoint → Path × Method
+endpointKey e = (Endpoint.route e , Endpoint.method e)
+
+endpointKeys : List Endpoint → List (Path × Method)
+endpointKeys [] = []
+endpointKeys (e :: es) = endpointKey e :: endpointKeys es
+
 data WFAPI : API → Set where
   wf-api :
     ∀ {api}
     → All WFSchema (values (API.components api))
+    → Unique (componentKeys api)
     → All WFEndpoint (API.paths api)
+    → Unique (endpointKeys (API.paths api))
     → WFAPI api
 ```
 

@@ -15,7 +15,7 @@ support the soundness argument for an operational evolution calculus.
 module Semantics.SchemaRefinementProperties where
 
 open import Prelude
-open import Syntax
+open import Syntax.Syntax
 open import WellFormed.Core
 
 open import Semantics.SchemaRefinement
