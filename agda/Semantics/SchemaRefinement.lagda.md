@@ -10,7 +10,8 @@ Refinement is defined structurally (by schema shape) and only for well-formed sc
 module Semantics.SchemaRefinement where
 
 open import Prelude
-open import Syntax
+open import Syntax.Syntax
+
 open import WellFormed.Core
 open import Semantics.Variance
 ```
