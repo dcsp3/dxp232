@@ -1,0 +1,26 @@
+openapi: 3.1.0
+info:
+  title: Array Test
+  version: "1.0"
+
+paths: {}
+
+components:
+  schemas:
+    IdList:
+      type: array
+      items:
+        type: integer
+
+    TodoList:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: integer
+          title:
+            type: string
+        required:
+          - id
+          - title

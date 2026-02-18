@@ -2,10 +2,8 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 # Base
-
 Base = str
 # Allowed: "integer", "string", "boolean", "number", "object", "array"
-
 
 # Schema
 
@@ -22,7 +20,6 @@ class Schema:
     examples: List[str]
     
 # Parameter
-
 @dataclass
 class Parameter:
     name: str
@@ -31,33 +28,28 @@ class Parameter:
     schema: Base
     
 # Path
-
 @dataclass
 class PathSegment:
     kind: str  # "lit" or "param"
     value: str
-
 
 @dataclass
 class Path:
     segments: List[PathSegment]
     
 # Body
-
 @dataclass
 class Body:
     kind: str  # "NoBody", "NoBodyD", "HasBody", "HasBodyU", "HasBodyP"
     schema: Optional[Schema]
     
 # Response
-
 @dataclass
 class Response:
     status: str  # "OK", "BadRequest", "NotFound", "NoContent"
     schema: Schema
     
 # Endpoint
-
 @dataclass
 class Endpoint:
     route: Path
@@ -67,7 +59,6 @@ class Endpoint:
     responses: List[Response]
     
 # API
-
 @dataclass
 class API:
     paths: List[Endpoint]

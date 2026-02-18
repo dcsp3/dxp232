@@ -1,0 +1,27 @@
+openapi: 3.1.0
+info:
+  title: Post Test
+  version: "1.0"
+
+paths:
+  /todos:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+              required:
+                - title
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: string
+
+components:
+  schemas: {}
