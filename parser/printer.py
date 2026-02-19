@@ -11,7 +11,10 @@ def agda_list(items: list[str]) -> str:
 
     return f"{result} :: []"
 
-def print_schema(schema: Schema) -> str:
+def print_schema(schema: Schema, component_map=None, inline=False) -> str:
+    if not inline and component_map and id(schema) in component_map:
+        return component_map[id(schema)]
+    
     if schema.type in {"integer", "string", "boolean", "number"}:
         return (
             "record { "
@@ -87,14 +90,14 @@ def print_parameter(p: Parameter) -> str:
         f"schema = {p.schema} }}"
     )
 
-def print_body(body: Body) -> str:
+def print_body(body: Body, component_map=None):
     if body.kind in {"NoBody", "NoBodyD"}:
         return body.kind
 
-    return f"{body.kind} ({print_schema(body.schema)})"
+    return f"{body.kind} ({print_schema(body.schema, component_map)})"
 
-def print_response(r: Response) -> str:
-    return f"response {r.status} ({print_schema(r.schema)})"
+def print_response(r: Response, component_map=None):
+    return f"response {r.status} ({print_schema(r.schema, component_map)})"
 
 def print_endpoint(e: Endpoint) -> str:
     parameters_str = agda_list([print_parameter(p) for p in e.parameters])
@@ -112,6 +115,8 @@ def print_endpoint(e: Endpoint) -> str:
 def print_api_module(api: API, module_name: str) -> str:
     lines = []
 
+    component_map = {id(schema): name for name, schema in api.components}
+
     lines.append(f"module {module_name} where")
     lines.append("")
     lines.append("open import All")
@@ -120,20 +125,71 @@ def print_api_module(api: API, module_name: str) -> str:
     # Components
     for name, schema in api.components:
         lines.append(f"{name} : Schema")
-        lines.append(f"{name} = {print_schema(schema)}")
+        lines.append(f"{name} = {print_schema(schema, component_map, inline=True)}")
         lines.append("")
 
-    # Print API value
-    endpoints_str = agda_list([print_endpoint(e) for e in api.paths])
+    # Paths
+    for i, endpoint in enumerate(api.paths):
+        path_name = f"Path{i}"
+        lines.append(f"{path_name} : Path")
+        lines.append(f"{path_name} = {print_path(endpoint.route)}")
+        lines.append("")
+
+    # Parameters
+    for i, endpoint in enumerate(api.paths):
+        for j, param in enumerate(endpoint.parameters):
+            param_name = f"Param{i}x{j}"
+            lines.append(f"{param_name} : Parameter")
+            lines.append(f"{param_name} = {print_parameter(param)}")
+            lines.append("")
+
+    # Responses
+    for i, endpoint in enumerate(api.paths):
+        resp_name = f"Responses{i}"
+        responses_str = agda_list(
+            [print_response(r, component_map) for r in endpoint.responses]
+        )
+
+        lines.append(f"{resp_name} : List Response")
+        lines.append(f"{resp_name} = {responses_str}")
+        lines.append("")
+
+    # Endpoints
+    for i, endpoint in enumerate(api.paths):
+        endpoint_name = f"Endpoint{i}"
+        path_name = f"Path{i}"
+        resp_name = f"Responses{i}"
+
+        params = [
+            f"Param{i}x{j}"
+            for j in range(len(endpoint.parameters))
+        ]
+        params_str = agda_list(params)
+
+        lines.append(f"{endpoint_name} : Endpoint")
+        lines.append(
+            " ".join([
+                f"{endpoint_name} = record {{",
+                f"route = {path_name} ;",
+                f"method = {endpoint.method} ;",
+                f"parameters = {params_str} ;",
+                f"body = {print_body(endpoint.body, component_map)} ;",
+                f"responses = {resp_name} }}"
+            ])
+        )
+        lines.append("")
+
+    # Final API
+    endpoint_names = [f"Endpoint{i}" for i in range(len(api.paths))]
+    endpoints_str = agda_list(endpoint_names)
+
     components_str = agda_list(
-        [f'("{name}" , {print_schema(schema)})' for name, schema in api.components]
+        [f'("{name}" , {name})' for name, _ in api.components]
     )
 
     lines.append("GeneratedAPI : API")
     lines.append(
-        "GeneratedAPI = record { "
-        f"paths = {endpoints_str} ; "
-        f"components = {components_str} }}"
+        f"GeneratedAPI = record {{ paths = {endpoints_str} ; components = {components_str} }}"
     )
 
     return "\n".join(lines)
