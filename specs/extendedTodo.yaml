@@ -1,0 +1,75 @@
+openapi: 3.1.0
+info:
+  title: Extended Todo API
+  version: "1.0"
+
+paths:
+  /todos:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Todo"
+
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewTodo"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+
+  /todos/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+
+    Todo:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+      required: [id, title]
+
+    NewTodo:
+      type: object
+      properties:
+        title:
+          type: string
+      required: [title]
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
