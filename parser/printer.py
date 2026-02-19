@@ -1,4 +1,4 @@
-from dsl_ast import API, Schema
+from dsl_ast import Path, PathSegment, Endpoint, Response, Parameter, Body, API, Schema
 
 
 def agda_list(items: list[str]) -> str:
@@ -61,6 +61,54 @@ def print_schema(schema: Schema) -> str:
 
     raise ValueError(f"Unsupported schema type: {schema.type}")
 
+def print_path_segment(seg: PathSegment) -> str:
+    if seg.kind == "lit":
+        return f'lit "{seg.value}"'
+    if seg.kind == "param":
+        return f'param "{seg.value}"'
+    raise ValueError("Unknown PathSegment kind")
+
+def print_path(path: Path) -> str:
+    segments = [print_path_segment(s) for s in path.segments]
+    segments_str = agda_list(segments)
+
+    return f"record {{ segments = {segments_str} }}"
+
+def print_parameter(p: Parameter) -> str:
+    location = "path" if p.location == "path" else "query"
+
+    required = "true" if p.required else "false"
+
+    return (
+        "record { "
+        f"name = \"{p.name}\" ; "
+        f"location = {location} ; "
+        f"required = {required} ; "
+        f"schema = {p.schema} }}"
+    )
+
+def print_body(body: Body) -> str:
+    if body.kind in {"NoBody", "NoBodyD"}:
+        return body.kind
+
+    return f"{body.kind} ({print_schema(body.schema)})"
+
+def print_response(r: Response) -> str:
+    return f"response {r.status} ({print_schema(r.schema)})"
+
+def print_endpoint(e: Endpoint) -> str:
+    parameters_str = agda_list([print_parameter(p) for p in e.parameters])
+    responses_str = agda_list([print_response(r) for r in e.responses])
+
+    return (
+        "record { "
+        f"route = {print_path(e.route)} ; "
+        f"method = {e.method} ; "
+        f"parameters = {parameters_str} ; "
+        f"body = {print_body(e.body)} ; "
+        f"responses = {responses_str} }}"
+    )
+
 def print_api_module(api: API, module_name: str) -> str:
     lines = []
 
@@ -75,7 +123,17 @@ def print_api_module(api: API, module_name: str) -> str:
         lines.append(f"{name} = {print_schema(schema)}")
         lines.append("")
 
-    lines.append("-- Endpoints not yet printed")
-    lines.append("")
+    # Print API value
+    endpoints_str = agda_list([print_endpoint(e) for e in api.paths])
+    components_str = agda_list(
+        [f'("{name}" , {print_schema(schema)})' for name, schema in api.components]
+    )
+
+    lines.append("GeneratedAPI : API")
+    lines.append(
+        "GeneratedAPI = record { "
+        f"paths = {endpoints_str} ; "
+        f"components = {components_str} }}"
+    )
 
     return "\n".join(lines)
