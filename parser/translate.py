@@ -1,4 +1,4 @@
-from dsl_ast import Schema, Path, PathSegment, Body, Endpoint, Parameter, Response, API
+from dsl_ast import Schema, SchemaRef, Path, PathSegment, Body, Endpoint, Parameter, Response, API
 
 STATUS_MAP = {
     "200": "OK",
@@ -28,8 +28,7 @@ def translate_schema(raw: dict, components: dict) -> Schema:
         if schema_name not in components:
             raise TranslationError(f"Referenced schema '{schema_name}' not found.")
 
-        # recursively translate the referenced schema
-        return translate_schema(components[schema_name], components)
+        return SchemaRef(schema_name)
 
     base_type = raw["type"]
 

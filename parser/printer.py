@@ -1,4 +1,4 @@
-from dsl_ast import Path, PathSegment, Endpoint, Response, Parameter, Body, API, Schema
+from dsl_ast import  Schema, SchemaRef, Path, PathSegment, Endpoint, Response, Parameter, Body, API
 
 
 def agda_list(items: list[str]) -> str:
@@ -11,10 +11,10 @@ def agda_list(items: list[str]) -> str:
 
     return f"{result} :: []"
 
-def print_schema(schema: Schema, component_map=None, inline=False) -> str:
-    if not inline and component_map and id(schema) in component_map:
-        return component_map[id(schema)]
-    
+def print_schema(schema: Schema) -> str:
+    if isinstance(schema, SchemaRef):
+        return schema.name
+
     if schema.type in {"integer", "string", "boolean", "number"}:
         return (
             "record { "
@@ -90,14 +90,14 @@ def print_parameter(p: Parameter) -> str:
         f"schema = {p.schema} }}"
     )
 
-def print_body(body: Body, component_map=None):
+def print_body(body: Body):
     if body.kind in {"NoBody", "NoBodyD"}:
         return body.kind
 
-    return f"{body.kind} ({print_schema(body.schema, component_map)})"
+    return f"{body.kind} {print_schema(body.schema)}"
 
-def print_response(r: Response, component_map=None):
-    return f"response {r.status} ({print_schema(r.schema, component_map)})"
+def print_response(r: Response):
+    return f"response {r.status} {print_schema(r.schema)}"
 
 def print_endpoint(e: Endpoint) -> str:
     parameters_str = agda_list([print_parameter(p) for p in e.parameters])
@@ -125,7 +125,7 @@ def print_api_module(api: API, module_name: str) -> str:
     # Components
     for name, schema in api.components:
         lines.append(f"{name} : Schema")
-        lines.append(f"{name} = {print_schema(schema, component_map, inline=True)}")
+        lines.append(f"{name} = {print_schema(schema)}")
         lines.append("")
 
     # Paths
@@ -147,7 +147,7 @@ def print_api_module(api: API, module_name: str) -> str:
     for i, endpoint in enumerate(api.paths):
         resp_name = f"Responses{i}"
         responses_str = agda_list(
-            [print_response(r, component_map) for r in endpoint.responses]
+            [print_response(r) for r in endpoint.responses]
         )
 
         lines.append(f"{resp_name} : List Response")
@@ -173,7 +173,7 @@ def print_api_module(api: API, module_name: str) -> str:
                 f"route = {path_name} ;",
                 f"method = {endpoint.method} ;",
                 f"parameters = {params_str} ;",
-                f"body = {print_body(endpoint.body, component_map)} ;",
+                f"body = {print_body(endpoint.body)} ;",
                 f"responses = {resp_name} }}"
             ])
         )

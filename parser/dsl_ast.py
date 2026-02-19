@@ -6,7 +6,6 @@ Base = str
 # Allowed: "integer", "string", "boolean", "number", "object", "array"
 
 # Schema
-
 @dataclass
 class Schema:
     type: Base
@@ -18,7 +17,12 @@ class Schema:
     default: Optional[str]
     description: Optional[str]
     examples: List[str]
-    
+
+# Schema ref
+@dataclass
+class SchemaRef:
+    name: str
+
 # Parameter
 @dataclass
 class Parameter:
