@@ -107,3 +107,21 @@ No meeting
 - Deeper dive into the Agda code next meeting
 
 ---
+
+## Week 4 (9/2)
+
+- Discussed what it means for two APIs to be equivalent rather than just related by refinement, and if that's something I can include
+- Talked about introducing a parser layer, likely as a small Python script, to translate real OpenAPI specifications into the DSL
+- Considered whether the tool should focus purely on translation or also support generating new APIs and checking refinement after modifications
+- Asked to start thinking about things that were challenging in the project (likely for demo and report)
+
+---
+
+## Week 5 (18/2)
+
+- Clarified the relationship between drift and compatibility, with the idea that if drift occurs then compatibility should fail under the refinement relation
+- Revisited the semantic interpretation of refinement, discussing whether an API refines another precisely when every previously valid request still produces an acceptable response
+- Should compatibility be defined purely in terms of observable responses or is a fuller behavioural semantics of endpoints required (this is likely out of scope given the time-frame)
+- Pitched the idea of having a UI for users to compare APIs easily, with the backend linking to our formal Agda model
+
+---
