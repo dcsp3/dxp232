@@ -19,8 +19,11 @@ open import WellFormed.Core
 
 open import Semantics.Variance
 open import Semantics.SchemaRefinement
+open import Semantics.SchemaRefinementProperties
 open import Semantics.EndpointRefinement
 open import Semantics.APIRefinement
+
+open Σ using (fst ; snd)
 ```
 
 ---
@@ -46,12 +49,12 @@ data SchemaDrift : Schema → Schema → Set where
     → SchemaDrift si ti
     → SchemaDrift s t
 
-  RequiredFieldAdded :
+  RequiredFieldRemoved :
       ∀ {s t k}
     → Schema.type s ≡ object
     → Schema.type t ≡ object
-    → k ∈ Schema.required t
-    → k ∉ Schema.required s
+    → k ∈ Schema.required s
+    → k ∉ Schema.required t
     → SchemaDrift s t
 
   PropertyRemoved :
@@ -171,3 +174,94 @@ At this point we have a concrete structural account of breaking change. Drift fo
 The remaining task is to connect this back to refinement itself. Intuitively, if we can exhibit a specific structural violation, then the new API cannot refine the old one. The next theorem makes that connection precise.
 
 ---
+
+## 4. Drift Theorem (Soundness of Drift)
+
+The central result of this section is that drift genuinely captures incompatibility. If a concrete structural violation can be exhibited, then refinement cannot hold.
+
+We establish this in three stages, mirroring the layered definition of drift. First we show that schema drift contradicts schema refinement. We then lift this argument to endpoints, and finally to entire APIs.
+
+---
+
+### 4.1 Schema drift refutes schema refinement
+
+```agda
+SchemaDriftSound : ∀ {s t} → SchemaDrift s t → ¬ Schema⊑Co s t
+
+SchemaDriftSound (PrimitiveChanged _ _ s≢t)
+  (⊑-prim _ _ _ _ s≡t) =
+  s≢t s≡t
+
+SchemaDriftSound (ArrayItemDrift _ _ _)
+  (⊑-prim _ _ typeS _ _) =
+  ?
+```
+
+SchemaDriftSound (RequiredFieldRemoved _ _ _ _) (⊑-prim _ _ typeS _ _) =
+  prim≢object (subst IsPrimitive ? prim-integer)
+
+SchemaDriftSound (PropertyRemoved _ _) (⊑-prim _ _ typeS _ _) =
+  prim≢object (subst IsPrimitive ? prim-integer)
+
+SchemaDriftSound (PropertyDrift _ _ _) (⊑-prim _ _ typeS _ _) =
+  prim≢object (subst IsPrimitive typeS prim-integer)
+
+```agda
+SchemaDriftSound (ArrayItemDrift itemsS itemsT drift)
+  (⊑-array _ _ _ _ itemsS' itemsT' sub) =
+  SchemaDriftSound
+    (subst (SchemaDrift _) (just-inj (trans (sym itemsT) itemsT'))
+      (subst (λ x → SchemaDrift x _) (just-inj (trans (sym itemsS) itemsS'))
+        drift))
+    sub
+
+SchemaDriftSound (RequiredFieldRemoved _ _ k∈reqS k∉reqT)
+  (⊑-object _ _ _ _ _ reqS⊆reqT) =
+  ∉-elim k∉reqT (All-∈ reqS⊆reqT k∈reqS)
+
+SchemaDriftSound (PropertyRemoved {k = k} lkOld≢nothing lkNew≡nothing)
+  (⊑-object _ _ _ _ propRef _) =
+  search (Schema.properties _) propRef lkOld≢nothing
+  where 
+    search : ∀ ps → PropsRefine Schema⊑Co ps _ → lookupProp k ps ≢ nothing → ⊥
+    search [] _ lk≢nothing =
+      lk≢nothing refl
+    search ((k' , _) :: ps) (hd , tl) lk≢nothing
+      with k ≟ k'
+    ... | no  _ = search ps tl lk≢nothing
+    ... | yes refl = just≢nothing (trans (sym (fst (snd hd))) lkNew≡nothing)
+
+SchemaDriftSound (PropertyDrift {k = k} {ti = ti} lkOld lkNew sd)
+  (⊑-object _ _ _ _ propRef _) =
+  search (Schema.properties _) propRef lkOld
+  where
+    search :
+      ∀ ps
+      → PropsRefine Schema⊑Co ps _
+      → lookupProp k ps ≡ just _
+      → ⊥
+    search [] _ lk =
+      ⊥-elim (just≢nothing (sym lk))
+    search ((k' , si') :: ps) (hd , tl) lk
+      with k ≟ k'
+    ... | no  _ = search ps tl lk
+    ... | yes refl =
+            SchemaDriftSound
+              (subst (SchemaDrift si') (just-inj (trans (sym lkNew) (fst (snd hd))))
+                (subst (λ x → SchemaDrift x ti) (sym (just-inj lk))
+                  sd))
+              (snd (snd hd))
+```
+
+SchemaDriftSound (ArrayItemDrift _ _ _) (⊑-prim _ _ _ _ _) = ()
+SchemaDriftSound (ArrayItemDrift _ _ _) (⊑-object _ _ _ _ _ _) = ()
+
+SchemaDriftSound (RequiredFieldRemoved _ _ _ _) (⊑-prim _ _ _ _ _) = ()
+SchemaDriftSound (RequiredFieldRemoved _ _ _ _) (⊑-array _ _ _ _ _ _ _) = ()
+
+SchemaDriftSound (PropertyRemoved _ _) (⊑-prim _ _ _ _ _) = ()
+SchemaDriftSound (PropertyRemoved _ _) (⊑-array _ _ _ _ _ _ _) = ()
+
+SchemaDriftSound (PropertyDrift _ _ _) (⊑-prim _ _ _ _ _) = ()
+SchemaDriftSound (PropertyDrift _ _ _) (⊑-array _ _ _ _ _ _ _) = ()
+```

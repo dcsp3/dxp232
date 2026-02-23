@@ -57,6 +57,9 @@ data Maybe (A : Set) : Set where
 just-inj : ∀ {A : Set} {x y : A} → just x ≡ just y → x ≡ y
 just-inj refl = refl
 
+just≢nothing : ∀ {A} {x : A} → just x ≢ nothing
+just≢nothing ()
+
 record Σ (A : Set) (B : A → Set) : Set where
   constructor _,_
   field
