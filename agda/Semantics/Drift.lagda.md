@@ -194,9 +194,10 @@ SchemaDriftSound : ∀ {s t} → SchemaDrift s t → ¬ Schema⊑Co s t
 ### `⊑-prim` cases
 
 ```agda
-SchemaDriftSound d (⊑-prim (wf-prim primS itemsS propsS reqS)
-                            (wf-prim primT itemsT propsT reqT)
-                            typeS typeT eq) with d
+SchemaDriftSound d
+  (⊑-prim (wf-prim _ itemsS propsS reqS)
+          (wf-prim _ _ _ _)
+          _ _ eq) with d
 
 ... | PrimitiveChanged primS' primT' s≢t =
       s≢t eq
@@ -218,40 +219,41 @@ SchemaDriftSound d (⊑-prim (wf-prim primS itemsS propsS reqS)
 
 ### `⊑-array` cases
 
-SchemaDriftSound d (⊑-array wfS wfT typeS typeT itemsS itemsT sub)
-  with wfS | wfT | d
+```agda
+SchemaDriftSound d
+  (⊑-array (wf-array typeS _ _ propsS reqS)
+           (wf-array _ _ _ _ _)
+           _ _ itemsS' itemsT' sub)
+  with d
 
-... | wf-array typeS₀ itemsS₀ wfItemS propsS reqS
-    | wf-array typeT₀ itemsT₀ wfItemT propsT reqT
-    | PrimitiveChanged primS _ _ =
-      prim≢array (subst IsPrimitive typeS₀ primS)
+... | PrimitiveChanged primS primT s≢t =
+      prim≢array (subst IsPrimitive typeS primS)
 
-... | wf-array typeS₀ itemsS₀ wfItemS propsS reqS
-    | wf-array typeT₀ itemsT₀ wfItemT propsT reqT
-    | ArrayItemDrift itemsS' itemsT' drift =
+... | ArrayItemDrift itemsS₀ itemsT₀ drift =
       SchemaDriftSound
         (subst
           (SchemaDrift _)
-          (just-inj (trans (sym itemsT') itemsT₀))
+          (just-inj (trans (sym itemsT₀) itemsT'))
           (subst
             (λ x → SchemaDrift x _)
-            (just-inj (trans (sym itemsS') itemsS₀))
+            (just-inj (trans (sym itemsS₀) itemsS'))
             drift))
-        {!!}
+        sub
 
-... | wf-array typeS₀ itemsS₀ wfItemS propsS reqS
-    | wf-array typeT₀ itemsT₀ wfItemT propsT reqT
-    | RequiredFieldRemoved typeS' _ _ _ =
-      array≢object (trans (sym typeS₀) typeS')
+... | RequiredFieldRemoved {k = k} typeS' _ k∈ _ =
+      ⊥-elim (∈-empty (subst (λ xs → k ∈ xs) reqS k∈))
 
-... | wf-array typeS₀ itemsS₀ wfItemS propsS reqS
-    | wf-array typeT₀ itemsT₀ wfItemT propsT reqT
-    | PropertyRemoved {k = k} lkOld _ =
+... | PropertyRemoved {k = k} lkOld _ =
       lkOld (cong (lookupProp k) propsS)
 
-... | wf-array typeS₀ itemsS₀ wfItemS propsS reqS
-    | wf-array typeT₀ itemsT₀ wfItemT propsT reqT
-    | PropertyDrift {k = k} lkOld _ _ =
+... | PropertyDrift {k = k} lkOld _ _ =
       just≢nothing
         (trans (sym lkOld)
                (cong (lookupProp k) propsS))
+```
+
+### '' cases
+
+```agda
+
+```
