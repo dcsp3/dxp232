@@ -186,27 +186,37 @@ We establish this in three stages, mirroring the layered definition of drift. Fi
 ### 4.1 Schema drift refutes schema refinement
 
 ```agda
+∈-empty : ∀ {A} {x : A} → x ∈ [] → ⊥
+∈-empty ()
+
 SchemaDriftSound : ∀ {s t} → SchemaDrift s t → ¬ Schema⊑Co s t
 
 SchemaDriftSound (PrimitiveChanged _ _ s≢t)
   (⊑-prim _ _ _ _ s≡t) =
   s≢t s≡t
 
-SchemaDriftSound (ArrayItemDrift _ _ _)
-  (⊑-prim _ _ typeS _ _) =
-  ?
+SchemaDriftSound (ArrayItemDrift itemsS _ _)
+  (⊑-prim (wf-prim _ items≡nothing _ _) _ _ _ _) =
+  ⊥-elim (just≢nothing (trans (sym itemsS) items≡nothing))
+
+SchemaDriftSound (RequiredFieldRemoved {k = k} _ _ k∈reqS _)
+  (⊑-prim (wf-prim _ _ _ req≡[]) _ _ _ _) =
+  ⊥-elim (∈-empty (subst (λ xs → k ∈ xs) req≡[] k∈reqS))
+
+SchemaDriftSound
+  (PropertyRemoved {k = k} lkOld≢nothing _)
+  (⊑-prim (wf-prim _ _ props≡[] _) _ _ _ _) =
+  lkOld≢nothing
+    (cong (lookupProp k) props≡[])
+
+SchemaDriftSound (PropertyDrift {k = k} lkOld _ _)
+  (⊑-prim (wf-prim _ _ props≡[] _) _ _ _ _) =
+  just≢nothing
+    (trans
+      (sym lkOld)
+      (cong (lookupProp k) props≡[]))
 ```
 
-SchemaDriftSound (RequiredFieldRemoved _ _ _ _) (⊑-prim _ _ typeS _ _) =
-  prim≢object (subst IsPrimitive ? prim-integer)
-
-SchemaDriftSound (PropertyRemoved _ _) (⊑-prim _ _ typeS _ _) =
-  prim≢object (subst IsPrimitive ? prim-integer)
-
-SchemaDriftSound (PropertyDrift _ _ _) (⊑-prim _ _ typeS _ _) =
-  prim≢object (subst IsPrimitive typeS prim-integer)
-
-```agda
 SchemaDriftSound (ArrayItemDrift itemsS itemsT drift)
   (⊑-array _ _ _ _ itemsS' itemsT' sub) =
   SchemaDriftSound
@@ -251,17 +261,4 @@ SchemaDriftSound (PropertyDrift {k = k} {ti = ti} lkOld lkNew sd)
                 (subst (λ x → SchemaDrift x ti) (sym (just-inj lk))
                   sd))
               (snd (snd hd))
-```
-
-SchemaDriftSound (ArrayItemDrift _ _ _) (⊑-prim _ _ _ _ _) = ()
-SchemaDriftSound (ArrayItemDrift _ _ _) (⊑-object _ _ _ _ _ _) = ()
-
-SchemaDriftSound (RequiredFieldRemoved _ _ _ _) (⊑-prim _ _ _ _ _) = ()
-SchemaDriftSound (RequiredFieldRemoved _ _ _ _) (⊑-array _ _ _ _ _ _ _) = ()
-
-SchemaDriftSound (PropertyRemoved _ _) (⊑-prim _ _ _ _ _) = ()
-SchemaDriftSound (PropertyRemoved _ _) (⊑-array _ _ _ _ _ _ _) = ()
-
-SchemaDriftSound (PropertyDrift _ _ _) (⊑-prim _ _ _ _ _) = ()
-SchemaDriftSound (PropertyDrift _ _ _) (⊑-array _ _ _ _ _ _ _) = ()
 ```
