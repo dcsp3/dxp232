@@ -121,6 +121,9 @@ data _∈_ {A : Set} : A → List A → Set where
   here  : ∀ {x xs} → x ∈ (x :: xs)
   there : ∀ {x y xs} → x ∈ xs → x ∈ (y :: xs)
 
+∈-empty : ∀ {A} {x : A} → x ∈ [] → ⊥
+∈-empty ()
+
 data _∉_ {A : Set} (x : A) : List A → Set where
   notin[]  : x ∉ []
   notin::_ : ∀ {y ys} → x ≢ y → x ∉ ys → x ∉ (y :: ys)

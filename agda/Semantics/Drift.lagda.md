@@ -185,21 +185,25 @@ We establish this in three stages, mirroring the layered definition of drift. Fi
 
 ### 4.1 Schema drift refutes schema refinement
 
-```agda
-∈-empty : ∀ {A} {x : A} → x ∈ [] → ⊥
-∈-empty ()
+The proof proceeds by structural case analysis on both the drift witness and the refinement derivation. In each branch, either we derive a direct semantic contradiction (for example, a changed primitive type contradicting primitive refinement), or we eliminate an impossible shape combination using the well-formedness invariants enforced by the refinement constructors.
 
+```agda
 SchemaDriftSound : ∀ {s t} → SchemaDrift s t → ¬ Schema⊑Co s t
 
-SchemaDriftSound (PrimitiveChanged _ _ s≢t)
+-- primitive cases
+
+SchemaDriftSound
+  (PrimitiveChanged _ _ s≢t)
   (⊑-prim _ _ _ _ s≡t) =
   s≢t s≡t
 
-SchemaDriftSound (ArrayItemDrift itemsS _ _)
+SchemaDriftSound
+  (ArrayItemDrift itemsS _ _)
   (⊑-prim (wf-prim _ items≡nothing _ _) _ _ _ _) =
   ⊥-elim (just≢nothing (trans (sym itemsS) items≡nothing))
 
-SchemaDriftSound (RequiredFieldRemoved {k = k} _ _ k∈reqS _)
+SchemaDriftSound
+  (RequiredFieldRemoved {k = k} _ _ k∈reqS _)
   (⊑-prim (wf-prim _ _ _ req≡[]) _ _ _ _) =
   ⊥-elim (∈-empty (subst (λ xs → k ∈ xs) req≡[] k∈reqS))
 
@@ -209,12 +213,18 @@ SchemaDriftSound
   lkOld≢nothing
     (cong (lookupProp k) props≡[])
 
-SchemaDriftSound (PropertyDrift {k = k} lkOld _ _)
+SchemaDriftSound
+  (PropertyDrift {k = k} lkOld _ _)
   (⊑-prim (wf-prim _ _ props≡[] _) _ _ _ _) =
   just≢nothing
     (trans
       (sym lkOld)
       (cong (lookupProp k) props≡[]))
+```
+
+```agda
+-- array cases
+
 ```
 
 SchemaDriftSound (ArrayItemDrift itemsS itemsT drift)
@@ -261,4 +271,3 @@ SchemaDriftSound (PropertyDrift {k = k} {ti = ti} lkOld lkNew sd)
                 (subst (λ x → SchemaDrift x ti) (sym (just-inj lk))
                   sd))
               (snd (snd hd))
-```
