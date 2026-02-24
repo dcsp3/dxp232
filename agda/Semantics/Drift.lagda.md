@@ -252,8 +252,61 @@ SchemaDriftSound d
                (cong (lookupProp k) propsS))
 ```
 
-### '' cases
+### `⊑-object` cases
 
 ```agda
+SchemaDriftSound d
+  (⊑-object (wf-object typeS itemsS _ _ _ _)
+            (wf-object _ _ _ _ _ _)
+            _ _ propRef reqIncl)
+  with d
 
+... | PrimitiveChanged primS _ _ =
+      prim≢object (subst IsPrimitive typeS primS)
+
+... | ArrayItemDrift itemsS' _ _ =
+      ⊥-elim (just≢nothing (trans (sym itemsS') itemsS))
+
+... | RequiredFieldRemoved {k = k} _ _ k∈ k∉ =
+      ∉-elim k∉ (All-∈ reqIncl k∈)
+
+... | PropertyRemoved {s = s} {t = t} {k = k} lkOld lkNew =
+      search (Schema.properties s) propRef lkOld
+  where
+    search : ∀ ps →  PropsRefine Schema⊑Co ps (Schema.properties t) → ¬ (lookupProp k ps ≢ nothing)
+    
+    search [] _ lk≢ =
+      lk≢ refl
+
+    search ((k' , _) :: ps) (hd , tl) lk≢
+      with k ≟ k'
+
+    ... | no _ =
+          search ps tl lk≢
+
+    ... | yes refl =
+          let (_ , (lkNew≡just , _)) = hd
+          in  just≢nothing (trans (sym lkNew≡just) lkNew)
+
+... | PropertyDrift {s} {t} {k} {ti = ti} lkOld lkNew drift =
+      search (Schema.properties s) propRef lkOld
+  where
+    search : ∀ ps → PropsRefine Schema⊑Co ps (Schema.properties t) → ¬ (lookupProp k ps ≡ just _)
+
+    search [] _ lk = ⊥-elim (just≢nothing (sym lk))
+
+    search ((k' , so) :: ps) (hd , tl) lk
+      with k ≟ k'
+      
+    ... | no _ =
+          search ps tl lk
+          
+    ... | yes refl =
+          SchemaDriftSound
+            (subst (SchemaDrift so)
+                   (just-inj (trans (sym lkNew) (fst (snd hd))))
+                   (subst (λ x → SchemaDrift x ti)
+                          (sym (just-inj lk))
+                          drift))
+            (snd (snd hd))
 ```
