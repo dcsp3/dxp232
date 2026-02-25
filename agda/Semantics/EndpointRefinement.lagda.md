@@ -158,10 +158,20 @@ We define these first, then combine them into the main endpoint judgement.
 ### 2.1 Parameters
 
 A parameter is identified by its `(location , name)` pair.
-The new endpoint must still provide every parameter that old clients may send.
 
-Since parameters in our syntax carry a `Base` schema, we require the base type
-to be unchanged. We also forbid parameters from becoming newly required.
+Since parameters are consumed by the server, they are checked contravariantly. Contravariant refinement ensures that the new endpoint accepts at least all inputs that were valid for the old endpoint.
+
+This requires two conditions:
+
+1. **Preservation of existing inputs**  
+   Every parameter accepted by the old endpoint must still be accepted by the new endpoint, with the same base type and without strengthening its requiredness.
+
+2. **No new required inputs**
+   The new endpoint must not introduce any required parameter that was not already required in the old endpoint.
+
+Together, these conditions ensure that every request that was valid for the old endpoint remains valid for the new endpoint.
+
+Since parameters in our syntax carry only a `Base` schema, we require the base type to remain unchanged.
 
 ```agda
 ReqWeakens : Bool → Bool → Set
@@ -173,14 +183,35 @@ Param⊑Contra pOld pNew =
   × Parameter.name     pOld ≡ Parameter.name     pNew
   × Parameter.schema   pOld ≡ Parameter.schema   pNew
   × ReqWeakens (Parameter.required pOld) (Parameter.required pNew)
+```
 
-Params⊑Contra : List Parameter → List Parameter → Set
-Params⊑Contra [] new = ⊤
-Params⊑Contra (p :: ps) new =
+```agda
+OldParamsPreserved : List Parameter → List Parameter → Set
+OldParamsPreserved [] new = ⊤
+OldParamsPreserved (p :: ps) new =
   (Σ Parameter (λ p' →
        lookupParam (Parameter.location p) (Parameter.name p) new ≡ just p'
      × Param⊑Contra p p'))
-  × Params⊑Contra ps new
+  × OldParamsPreserved ps new
+
+NewRequiredSafe : List Parameter → List Parameter → Set
+NewRequiredSafe old [] = ⊤
+
+NewRequiredSafe old (p :: ps) =
+  (Parameter.required p ≡ true →
+     Σ Parameter (λ pOld →
+         lookupParam (Parameter.location p)
+                     (Parameter.name p)
+                     old ≡ just pOld
+       × Parameter.required pOld ≡ true))
+  × NewRequiredSafe old ps
+```
+
+```agda
+Params⊑Contra : List Parameter → List Parameter → Set
+Params⊑Contra old new =
+    OldParamsPreserved old new
+  × NewRequiredSafe old new
 ```
 
 ---
