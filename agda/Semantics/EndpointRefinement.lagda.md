@@ -195,16 +195,13 @@ OldParamsPreserved (p :: ps) new =
   × OldParamsPreserved ps new
 
 NewRequiredSafe : List Parameter → List Parameter → Set
-NewRequiredSafe old [] = ⊤
-
-NewRequiredSafe old (p :: ps) =
-  (Parameter.required p ≡ true →
-     Σ Parameter (λ pOld →
-         lookupParam (Parameter.location p)
-                     (Parameter.name p)
-                     old ≡ just pOld
-       × Parameter.required pOld ≡ true))
-  × NewRequiredSafe old ps
+NewRequiredSafe old new =
+  ∀ {ℓ k p}
+  → lookupParam ℓ k new ≡ just p
+  → Parameter.required p ≡ true
+  → Σ Parameter (λ pOld →
+       lookupParam ℓ k old ≡ just pOld
+     × Parameter.required pOld ≡ true)
 ```
 
 ```agda
