@@ -40,6 +40,12 @@ postulate
 data Bool : Set where
   true false : Bool
 
+true≢false : true ≡ false → ⊥
+true≢false ()
+
+false≢true : false ≡ true → ⊥
+false≢true ()
+
 if_then_else_ : ∀ {A : Set} → Bool → A → A → A
 if true  then t else f = t
 if false then t else f = f
