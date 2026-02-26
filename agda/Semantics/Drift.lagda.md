@@ -150,7 +150,7 @@ data EndpointDrift : Endpoint → Endpoint → Set where
       ∀ {e₀ e₁ s₀ s₁}
     → BodySchema (Endpoint.body e₀) s₀
     → BodySchema (Endpoint.body e₁) s₁
-    → SchemaDrift s₀ s₁
+    → SchemaDrift s₁ s₀
     → EndpointDrift e₀ e₁
 
   ResponseRemoved :
@@ -326,20 +326,115 @@ EndpointDriftSound (MethodChanged method≢)
                    (⊑-endpoint _ _ _ method≡ _ _ _) =
                      method≢ method≡
 
-EndpointDriftSound (ParameterRemoved x x₁) e = {!!}
+EndpointDriftSound {e₀} {e₁} (ParameterRemoved {ℓ = ℓ} {k = k} oldHas newMissing)
+                             (⊑-endpoint _ _ _ _ (oldPres , _) _ _) =
+                               helper (lookupParam ℓ k (Endpoint.parameters e₀)) refl
+                                 where
+                                   helper : ∀ res → lookupParam ℓ k (Endpoint.parameters e₀) ≡ res → ⊥
 
-EndpointDriftSound (RequiredParameterAdded x x₁ x₂ x₃ x₄ x₅) e = {!!}
+                                   helper nothing eq = ⊥-elim (oldHas eq)
+                                   helper (just p) eq =
+                                     let (p' , (lkNew , _)) = OldParamsPreserved-lookup oldPres eq
+                                     in ⊥-elim (just≢nothing (trans (sym lkNew) newMissing))
+          
+EndpointDriftSound (RequiredParameterAdded {e₀} {p₀ = p₀} {p₁ = p₁} loc≡ name≡ lkOld lkNew oldFalse newTrue)
+                   (⊑-endpoint _ _ _ _ (_ , newSafe) _ _) =
+                     let (pOld , (lkOldFromSafe , reqOldFromSafe)) =
+                           newSafe {Parameter.location p₁} {Parameter.name p₁} {p₁} lkNew newTrue
 
-EndpointDriftSound (NewRequiredParameter x x₁ x₂) e = {!!}
+                         -- rewrite the lookup using location equality
+                         lkOldFromSafe' : lookupParam (Parameter.location p₀) (Parameter.name p₁) (Endpoint.parameters e₀) ≡ just pOld
+                         lkOldFromSafe' = subst (λ ℓ → lookupParam ℓ (Parameter.name p₁) (Endpoint.parameters e₀) ≡ just pOld)
+                                                (sym loc≡)
+                                                lkOldFromSafe
 
-EndpointDriftSound (ParameterSchemaChanged x x₁ x₂ x₃ x₄) e = {!!}
+                         -- rewrite using name equality
+                         lkOldFromSafe'' : lookupParam (Parameter.location p₀) (Parameter.name p₀) (Endpoint.parameters e₀) ≡ just pOld
+                         lkOldFromSafe'' = subst (λ k → lookupParam (Parameter.location p₀) k (Endpoint.parameters e₀) ≡ just pOld)
+                                                 (sym name≡)
+                                                 lkOldFromSafe'
 
-EndpointDriftSound (BodySchemaDrift x x₁ x₂) e = {!!}
+                         -- the two lookups must find the same parameter
+                         p₀≡pOld : p₀ ≡ pOld
+                         p₀≡pOld = just-inj (trans (sym lkOld) lkOldFromSafe'')
 
-EndpointDriftSound (ResponseRemoved x x₁) e = {!!}
+                         -- extract the required field from the equality
+                         reqP₀≡reqPOld : Parameter.required p₀ ≡ Parameter.required pOld
+                         reqP₀≡reqPOld = cong Parameter.required p₀≡pOld
 
-EndpointDriftSound (ResponseDrift x x₁ x₂) e = {!!}
+                         -- this gives us a contradiction: p₀.required = false but also = true
+                         false≡true : false ≡ true
+                         false≡true = trans (sym oldFalse)
+                                           (trans reqP₀≡reqPOld reqOldFromSafe)
 
+                     in false≢true false≡true
+
+EndpointDriftSound (NewRequiredParameter {e₀} {e₁} {ℓ} {k} {p} oldMissing newHas reqTrue)
+                   (⊑-endpoint _ _ _ _ (_ , newSafe) _ _) =
+                     let (pOld , (lkOld , reqOld)) = newSafe {ℓ} {k} {p} newHas reqTrue
+                     in just≢nothing (trans (sym lkOld) oldMissing)
+
+EndpointDriftSound (ParameterSchemaChanged {e₀} {e₁} {p₀} {p₁} loc≡ name≡ lkOld lkNew schema≢)
+                   (⊑-endpoint _ _ _ _ (oldPres , _) _ _) =
+                     let
+                       (pOld , (lkFromPres , paramRef)) =
+                         OldParamsPreserved-lookup oldPres lkOld
+
+                       -- rewrite lkNew to p₀ key
+                       lkNew₁ =
+                         subst (λ ℓ →
+                           lookupParam ℓ (Parameter.name p₁)
+                             (Endpoint.parameters e₁) ≡ just p₁)
+                           (sym loc≡) lkNew
+
+                       lkNew₂ =
+                         subst (λ k →
+                           lookupParam (Parameter.location p₀) k
+                             (Endpoint.parameters e₁) ≡ just p₁)
+                           (sym name≡) lkNew₁
+
+                       p₁≡pOld =
+                         just-inj (trans (sym lkNew₂) lkFromPres)
+                       (_ , (_ , (schemaEq , _))) = paramRef
+
+                       schemaPOld≡schemaP₁ : Parameter.schema pOld ≡ Parameter.schema p₁
+                       schemaPOld≡schemaP₁ = cong Parameter.schema (sym p₁≡pOld)
+
+                       transported : Parameter.schema p₀ ≡ Parameter.schema p₁
+                       transported = trans schemaEq schemaPOld≡schemaP₁
+                     in
+                       schema≢ transported
+
+EndpointDriftSound (BodySchemaDrift bsOld bsNew sd)
+                   (⊑-endpoint _ _ _ method≡ _ body⊑ _)
+  with method≡
+... | refl with bsOld | bsNew
+...   | body-post  | body-post  = SchemaDriftSound sd body⊑
+...   | body-put   | body-put   = SchemaDriftSound sd body⊑
+...   | body-patch | body-patch = SchemaDriftSound sd body⊑
+
+EndpointDriftSound (ResponseRemoved {e₀} {e₁} {st} oldHas newMissing)
+                   (⊑-endpoint _ _ _ _ _ _ resps⊑) =
+                     helper (lookupResp st (Endpoint.responses e₀)) refl
+                       where
+                         helper : ∀ res → lookupResp st (Endpoint.responses e₀) ≡ res → ⊥
+                         
+                         helper nothing eq = oldHas eq
+                         helper (just s) eq =
+                           let (t , (lkNew , _)) = Resps⊑Co-lookup resps⊑ eq
+                           in just≢nothing (trans (sym lkNew) newMissing)
+
+EndpointDriftSound (ResponseDrift {e₀} {e₁} {st} {s₀} {s₁} lkOld lkNew sd)
+                   (⊑-endpoint _ _ _ _ _ _ resps⊑) =
+                     let (t , (lkNew' , s⊑t)) = Resps⊑Co-lookup resps⊑ lkOld
+                     
+                         s₁≡t : s₁ ≡ t
+                         s₁≡t = just-inj (trans (sym lkNew) lkNew')
+                         
+                         sd' : SchemaDrift s₀ t
+                         sd' = subst (SchemaDrift s₀) s₁≡t sd
+                         
+                     in SchemaDriftSound sd' s⊑t
 ```
 
 ---
