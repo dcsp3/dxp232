@@ -485,9 +485,32 @@ APIDriftSound (EndpointDriftWitness {a₀} {a₁} {r} {m} {e₀} {e₁} lkOld lk
                 in EndpointDriftSound ed e₀⊑e₁
 ```
 
+---
+
+### 4.4 Drift and incompatibility
+
+Drift was introduced as a structural account of breaking change.
+Each constructor isolates a specific refinement obligation that may fail: a removed component, a strengthened parameter, a narrowed response schema, or a body that becomes too restrictive.
+
+The previous sections established soundness at every layer:
+
+- schema drift refutes schema refinement,
+- endpoint drift refutes endpoint refinement,
+- API drift refutes API refinement.
+
+These results compose directly. At the top level, we obtain:
+
+```agda
+DriftSound : ∀ {a₀ a₁} → Drift a₀ a₁ → ¬ API⊑ a₀ a₁
+DriftSound = APIDriftSound
+```
+
+This theorem states that incompatibility in the model is never arbitrary.
+If refinement fails, it is *because&* some concrete structural guarantee has been violated. Drift provides that witness.
 
 
+At this point, we have a complete semantic account of breaking evolution:
 
-
-
-
+- refinement captures safe change,
+- drift captures structural violation,
+- and drift soundness ensures the two are mutually exclusive.
