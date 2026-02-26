@@ -21,6 +21,7 @@ open import Semantics.Variance
 open import Semantics.SchemaRefinement
 open import Semantics.SchemaRefinementProperties
 open import Semantics.EndpointRefinement
+open import Semantics.EndpointRefinementProperties
 open import Semantics.APIRefinement
 
 open Σ using (fst ; snd)
@@ -91,6 +92,11 @@ data BodySchema : ∀ {m} → Body m → Schema → Set where
   
 data EndpointDrift : Endpoint → Endpoint → Set where
 
+  RouteChanged :
+      ∀ {e₀ e₁}
+    → Endpoint.route e₀ ≢ Endpoint.route e₁
+    → EndpointDrift e₀ e₁
+
   MethodChanged :
       ∀ {e₀ e₁}
     → Endpoint.method e₀ ≢ Endpoint.method e₁
@@ -116,7 +122,29 @@ data EndpointDrift : Endpoint → Endpoint → Set where
         ≡ just p₁
     → Parameter.required p₀ ≡ false
     → Parameter.required p₁ ≡ true
-    → EndpointDrift e₀ e₁ 
+    → EndpointDrift e₀ e₁
+
+  NewRequiredParameter :
+       ∀ {e₀ e₁ ℓ k p}
+     → lookupParam ℓ k (Endpoint.parameters e₀) ≡ nothing
+     → lookupParam ℓ k (Endpoint.parameters e₁) ≡ just p
+     → Parameter.required p ≡ true
+     → EndpointDrift e₀ e₁
+
+  ParameterSchemaChanged :
+      ∀ {e₀ e₁ p₀ p₁}
+    → Parameter.location p₀ ≡ Parameter.location p₁
+    → Parameter.name p₀ ≡ Parameter.name p₁
+    → lookupParam (Parameter.location p₀)
+                  (Parameter.name p₀)
+                  (Endpoint.parameters e₀)
+        ≡ just p₀
+    → lookupParam (Parameter.location p₁)
+                  (Parameter.name p₁)
+                  (Endpoint.parameters e₁)
+        ≡ just p₁
+    → Parameter.schema p₀ ≢ Parameter.schema p₁
+    → EndpointDrift e₀ e₁
 
   BodySchemaDrift :
       ∀ {e₀ e₁ s₀ s₁}
@@ -143,36 +171,27 @@ data EndpointDrift : Endpoint → Endpoint → Set where
 
 ## 3. API Drift
 
-API drift captures breaking changes at the level of whole specifications.
+API drift captures breaking changes at the level of whole
+specifications.
 
 ```agda
 data Drift : API → API → Set where
 
-  ComponentRemoved :
-      ∀ {a₀ a₁ k}
-    → lookupComponent k (API.components a₀) ≢ nothing
-    → lookupComponent k (API.components a₁) ≡ nothing
-    → Drift a₀ a₁
+  ComponentRemoved : ∀ {a₀ a₁ k} → lookupComponent k (API.components
+      a₀) ≢ nothing → lookupComponent k (API.components a₁) ≡ nothing
+      → Drift a₀ a₁
 
-  ComponentDriftWitness :
-      ∀ {a₀ a₁ k s₀ s₁}
-    → lookupComponent k (API.components a₀) ≡ just s₀
-    → lookupComponent k (API.components a₁) ≡ just s₁
-    → SchemaDrift s₀ s₁
-    → Drift a₀ a₁
+  ComponentDriftWitness : ∀ {a₀ a₁ k s₀ s₁} → lookupComponent k
+      (API.components a₀) ≡ just s₀ → lookupComponent k
+      (API.components a₁) ≡ just s₁ → SchemaDrift s₀ s₁ → Drift a₀ a₁
 
-  EndpointRemoved :
-      ∀ {a₀ a₁ r m}
-    → lookupEndpoint r m (API.paths a₀) ≢ nothing
-    → lookupEndpoint r m (API.paths a₁) ≡ nothing
-    → Drift a₀ a₁
+  EndpointRemoved : ∀ {a₀ a₁ r m} → lookupEndpoint r m (API.paths a₀)
+      ≢ nothing → lookupEndpoint r m (API.paths a₁) ≡ nothing → Drift
+      a₀ a₁
 
-  EndpointDriftWitness :
-      ∀ {a₀ a₁ r m e₀ e₁}
-    → lookupEndpoint r m (API.paths a₀) ≡ just e₀
-    → lookupEndpoint r m (API.paths a₁) ≡ just e₁
-    → EndpointDrift e₀ e₁
-    → Drift a₀ a₁
+  EndpointDriftWitness : ∀ {a₀ a₁ r m e₀ e₁} → lookupEndpoint r m
+      (API.paths a₀) ≡ just e₀ → lookupEndpoint r m (API.paths a₁) ≡
+      just e₁ → EndpointDrift e₀ e₁ → Drift a₀ a₁
 ```
 
 At this point we have a concrete structural account of breaking change. Drift follows the same layered organisation as refinement, starting from schemas and lifting through endpoints to whole APIs.
@@ -295,12 +314,26 @@ SchemaDriftSound (PropertyDrift {s} {t} {k} {ti = ti} _ _ lkO lkN sd)
 ---
 
 
+### 4.2 Endpoint drift refutes endpoint refinement
 
 
+```agda
+       
+EndpointDriftSound : ∀ {e₀ e₁} → EndpointDrift e₀ e₁ → ¬ Endpoint⊑ e₀ e₁
 
+EndpointDriftSound (RouteChanged x) e = {!!}
+EndpointDriftSound (MethodChanged x) e = {!!}
+EndpointDriftSound (ParameterRemoved x x₁) e = {!!}
+EndpointDriftSound (RequiredParameterAdded x x₁ x₂ x₃ x₄ x₅) e = {!!}
+EndpointDriftSound (NewRequiredParameter x x₁ x₂) e = {!!}
+EndpointDriftSound (ParameterSchemaChanged x x₁ x₂ x₃ x₄) e = {!!}
+EndpointDriftSound (BodySchemaDrift x x₁ x₂) e = {!!}
+EndpointDriftSound (ResponseRemoved x x₁) e = {!!}
+EndpointDriftSound (ResponseDrift x x₁ x₂) e = {!!}
 
+```
 
-
+---
 
 
 
