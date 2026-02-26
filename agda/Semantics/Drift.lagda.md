@@ -23,6 +23,7 @@ open import Semantics.SchemaRefinementProperties
 open import Semantics.EndpointRefinement
 open import Semantics.EndpointRefinementProperties
 open import Semantics.APIRefinement
+open import Semantics.APIRefinementProperties
 
 open Σ using (fst ; snd)
 ```
@@ -418,7 +419,6 @@ EndpointDriftSound (ResponseRemoved {e₀} {e₁} {st} oldHas newMissing)
                      helper (lookupResp st (Endpoint.responses e₀)) refl
                        where
                          helper : ∀ res → lookupResp st (Endpoint.responses e₀) ≡ res → ⊥
-                         
                          helper nothing eq = oldHas eq
                          helper (just s) eq =
                            let (t , (lkNew , _)) = Resps⊑Co-lookup resps⊑ eq
@@ -439,7 +439,51 @@ EndpointDriftSound (ResponseDrift {e₀} {e₁} {st} {s₀} {s₁} lkOld lkNew s
 
 ---
 
+### 4.3 API drift refutes API refinement
 
+```agda
+APIDriftSound : ∀ {a₀ a₁} → Drift a₀ a₁ → ¬ API⊑ a₀ a₁
+
+APIDriftSound (ComponentRemoved {a₀} {a₁} {k} oldHas newMissing)
+              (⊑-api _ _ comps⊑ _) =
+                helper (lookupComponent k (API.components a₀)) refl
+                  where
+                    helper : ∀ res → lookupComponent k (API.components a₀) ≡ res → ⊥
+                    helper nothing eq = oldHas eq
+                    helper (just s) eq =
+                      let (t , (lkNew , _)) = Components⊑-lookup comps⊑ eq
+                      in just≢nothing (trans (sym lkNew) newMissing)
+
+APIDriftSound (ComponentDriftWitness {a₀} {a₁} {k} {s₀} {s₁} lkOld lkNew sd)
+              (⊑-api _ _ comps⊑ _) =
+                let (t , (lkNew' , s₀⊑t)) = Components⊑-lookup comps⊑ lkOld
+                    s₁≡t : s₁ ≡ t
+                    s₁≡t = just-inj (trans (sym lkNew) lkNew')
+                    
+                    s₀⊑s₁ : Schema⊑Co s₀ s₁
+                    s₀⊑s₁ = subst (Schema⊑Co s₀) (sym s₁≡t) s₀⊑t
+                in SchemaDriftSound sd s₀⊑s₁
+  
+APIDriftSound (EndpointRemoved {a₀} {a₁} {r} {m} oldHas newMissing)
+              (⊑-api _ _ _ paths⊑) =
+                helper (lookupEndpoint r m (API.paths a₀)) refl
+                where
+                  helper : ∀ res → lookupEndpoint r m (API.paths a₀) ≡ res → ⊥
+                  helper nothing eq = oldHas eq
+                  helper (just e) eq =
+                    let (e' , (lkNew , _)) = Endpoints⊑-lookup paths⊑ eq
+                    in just≢nothing (trans (sym lkNew) newMissing)
+      
+APIDriftSound (EndpointDriftWitness {a₀} {a₁} {r} {m} {e₀} {e₁} lkOld lkNew ed)
+              (⊑-api _ _ _ paths⊑) =
+                let (e' , (lkNew' , e₀⊑e')) = Endpoints⊑-lookup paths⊑ lkOld
+                    e₁≡e' : e₁ ≡ e'
+                    e₁≡e' = just-inj (trans (sym lkNew) lkNew')
+
+                    e₀⊑e₁ : Endpoint⊑ e₀ e₁
+                    e₀⊑e₁ = subst (Endpoint⊑ e₀) (sym e₁≡e') e₀⊑e'
+                in EndpointDriftSound ed e₀⊑e₁
+```
 
 
 
