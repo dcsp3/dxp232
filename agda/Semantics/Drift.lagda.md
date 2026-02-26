@@ -313,22 +313,31 @@ SchemaDriftSound (PropertyDrift {s} {t} {k} {ti = ti} _ _ lkO lkN sd)
 
 ---
 
-
 ### 4.2 Endpoint drift refutes endpoint refinement
 
-
 ```agda
-       
 EndpointDriftSound : ∀ {e₀ e₁} → EndpointDrift e₀ e₁ → ¬ Endpoint⊑ e₀ e₁
 
-EndpointDriftSound (RouteChanged x) e = {!!}
-EndpointDriftSound (MethodChanged x) e = {!!}
+EndpointDriftSound (RouteChanged route≢)
+                   (⊑-endpoint _ _ route≡ _ _ _ _) =
+                     route≢ route≡
+
+EndpointDriftSound (MethodChanged method≢)
+                   (⊑-endpoint _ _ _ method≡ _ _ _) =
+                     method≢ method≡
+
 EndpointDriftSound (ParameterRemoved x x₁) e = {!!}
+
 EndpointDriftSound (RequiredParameterAdded x x₁ x₂ x₃ x₄ x₅) e = {!!}
+
 EndpointDriftSound (NewRequiredParameter x x₁ x₂) e = {!!}
+
 EndpointDriftSound (ParameterSchemaChanged x x₁ x₂ x₃ x₄) e = {!!}
+
 EndpointDriftSound (BodySchemaDrift x x₁ x₂) e = {!!}
+
 EndpointDriftSound (ResponseRemoved x x₁) e = {!!}
+
 EndpointDriftSound (ResponseDrift x x₁ x₂) e = {!!}
 
 ```
