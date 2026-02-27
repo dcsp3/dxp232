@@ -506,7 +506,7 @@ DriftSound = APIDriftSound
 ```
 
 This theorem states that incompatibility in the model is never arbitrary.
-If refinement fails, it is *because&* some concrete structural guarantee has been violated. Drift provides that witness.
+If refinement fails, it is *because* some concrete structural guarantee has been violated. Drift provides that witness.
 
 
 At this point, we have a complete semantic account of breaking evolution:
