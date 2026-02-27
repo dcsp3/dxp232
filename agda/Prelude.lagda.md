@@ -40,6 +40,12 @@ postulate
 data Bool : Set where
   true false : Bool
 
+true≢false : true ≡ false → ⊥
+true≢false ()
+
+false≢true : false ≡ true → ⊥
+false≢true ()
+
 if_then_else_ : ∀ {A : Set} → Bool → A → A → A
 if true  then t else f = t
 if false then t else f = f
@@ -56,6 +62,9 @@ data Maybe (A : Set) : Set where
 
 just-inj : ∀ {A : Set} {x y : A} → just x ≡ just y → x ≡ y
 just-inj refl = refl
+
+just≢nothing : ∀ {A} {x : A} → just x ≢ nothing
+just≢nothing ()
 
 record Σ (A : Set) (B : A → Set) : Set where
   constructor _,_
@@ -117,6 +126,9 @@ infix 5 _∈_
 data _∈_ {A : Set} : A → List A → Set where
   here  : ∀ {x xs} → x ∈ (x :: xs)
   there : ∀ {x y xs} → x ∈ xs → x ∈ (y :: xs)
+
+∈-empty : ∀ {A} {x : A} → x ∈ [] → ⊥
+∈-empty ()
 
 data _∉_ {A : Set} (x : A) : List A → Set where
   notin[]  : x ∉ []

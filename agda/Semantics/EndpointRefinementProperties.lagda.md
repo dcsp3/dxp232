@@ -37,18 +37,23 @@ Every well-formed endpoint safely refines itself.
 
 We prove this by establishing reflexivity for each component, then combining them.
 
+---
+
 ### 1.1 Parameter reflexivity
 
 Parameter refinement is defined structurally over lists, so reflexivity is obtained by simple recursion.
 
 ```agda
-Params⊑Contra-weaken :
+OldParamsPreserved-weaken :
     ∀ {h ps new}
   → paramKey h ∉ paramKeys ps
-  → Params⊑Contra ps new
-  → Params⊑Contra ps (h :: new)
-Params⊑Contra-weaken {ps = []} _ tt = tt
-Params⊑Contra-weaken {h} {ps = q :: qs} {new}
+  → OldParamsPreserved ps new
+  → OldParamsPreserved ps (h :: new)
+
+OldParamsPreserved-weaken {ps = []} _ tt = tt
+
+OldParamsPreserved-weaken
+  {h} {ps = q :: qs} {new}
   (notin::_ h≢q h∉qs)
   ( (q' , (lkq' , rq')) , rest )
   =
@@ -57,19 +62,38 @@ Params⊑Contra-weaken {h} {ps = q :: qs} {new}
     , rq'
     )
   )
-  , Params⊑Contra-weaken h∉qs rest
+  , OldParamsPreserved-weaken h∉qs rest
+  ```
 
+```agda
 Param⊑Contra-refl : ∀ p → Param⊑Contra p p
 Param⊑Contra-refl _ = (refl , (refl , (refl , (λ x → x))))
+```
 
+```agda
 Params⊑Contra-refl :
-    ∀ {ps}
+  ∀ {ps}
   → Unique (paramKeys ps)
   → Params⊑Contra ps ps
-Params⊑Contra-refl {ps = []} uniq[] = tt
-Params⊑Contra-refl {ps = p :: ps} (uniq::_ p∉tail uniqTail) =
-  ( p , (lookupParam-here , Param⊑Contra-refl p) )
-  , Params⊑Contra-weaken p∉tail (Params⊑Contra-refl uniqTail)
+
+Params⊑Contra-refl {ps = []} uniq[] =
+  ( tt
+  , λ lk reqTrue →
+      _ , (lk , reqTrue)
+  )
+
+Params⊑Contra-refl {ps = p :: ps}
+  (uniq::_ p∉tail uniqTail)
+  =
+  ( ( p , (lookupParam-here , Param⊑Contra-refl p) )
+    , OldParamsPreserved-weaken p∉tail (fst rec)
+  )
+  ,
+  ( λ lk reqTrue →
+      _ , (lk , reqTrue)
+  )
+  where
+    rec = Params⊑Contra-refl uniqTail
 ```
 
 ---
@@ -133,6 +157,8 @@ Resps⊑Co-refl {rs = response st s :: rs}
   , Resps⊑Co-weaken st∉tail (Resps⊑Co-refl uniqTail rest)
 ```
 
+---
+
 ### 1.4 Endpoint reflexivity
 
 Finally, reflexivity of `Endpoint⊑` follows by combining the component
@@ -161,6 +187,8 @@ Endpoint⊑-refl {e} wf@(wf-endpoint _ _ uniqParams wfBody wfResps uniqResps) =
 If `e₀` refines to `e₁` and `e₁` refines to `e₂`, then `e₀` refines to `e₂`.
 
 As in reflexivity, we prove this component-wise and then combine the results.
+
+---
 
 ### 2.1 Parameter transitivity
 
@@ -194,6 +222,8 @@ Param⊑Contra-trans
   )
 ```
 
+---
+
 ### 2.2 Parameter list transitivity
 
 `Params⊑Contra` is defined by iterating over the old list and using lookup to
@@ -203,65 +233,89 @@ intermediate list, then the refinement proof for that intermediate list tells
 us how it maps forward.
 
 ```agda
-Params⊑Contra-lookup :
-    ∀ {qs rs ℓ k q}
-  → Params⊑Contra qs rs
+OldParamsPreserved-lookup :
+  ∀ {qs rs ℓ k q}
+  → OldParamsPreserved qs rs
   → lookupParam ℓ k qs ≡ just q
   → Σ Parameter (λ r →
        lookupParam ℓ k rs ≡ just r
      × Param⊑Contra q r)
-Params⊑Contra-lookup {qs = []} tt ()
-Params⊑Contra-lookup {qs = q₀ :: qs} {rs} {ℓ} {k} {q}
+
+OldParamsPreserved-lookup {qs = []} _ ()
+
+OldParamsPreserved-lookup
+  {qs = q₀ :: qs} {rs} {ℓ} {k} {q}
   ( (r₀ , (lkr₀ , q₀⊑r₀)) , rest )
   lk
   with ParamLocation≟ ℓ (Parameter.location q₀)
-... | no _ =
-  Params⊑Contra-lookup rest lk
+... | no _ = OldParamsPreserved-lookup rest lk
 ... | yes refl
   with (k ≟ Parameter.name q₀)
-... | no _ =
-  Params⊑Contra-lookup rest lk
+... | no _ = OldParamsPreserved-lookup rest lk
 ... | yes refl =
-  let q₀≡q : q₀ ≡ q
-      q₀≡q = just-inj lk
-  in
-  r₀
-  , ( lkr₀
-    , subst (λ x → Param⊑Contra x r₀) q₀≡q q₀⊑r₀
-    )
+  let q₀≡q = just-inj lk in
+  r₀ , (lkr₀ , subst (λ x → Param⊑Contra x r₀) q₀≡q q₀⊑r₀)
+```
 
-Params⊑Contra-trans :
-    ∀ {ps qs rs}
-  → Params⊑Contra ps qs
-  → Params⊑Contra qs rs
-  → Params⊑Contra ps rs
-Params⊑Contra-trans {ps = []} _ _ = tt
-Params⊑Contra-trans {ps = p :: ps} {qs} {rs}
-  ( (q , (lkq , p⊑q)) , ps⊑qs )
-  qs⊑rs
+```agda
+OldParamsPreserved-trans :
+  ∀ {ps qs rs}
+  → OldParamsPreserved ps qs
+  → OldParamsPreserved qs rs
+  → OldParamsPreserved ps rs
+
+OldParamsPreserved-trans {ps = []} _ _ = tt
+
+OldParamsPreserved-trans {ps = p :: ps}
+  ( (q , (lkq , p⊑q)) , ps≤qs )
+  qs≤rs
   =
   ( r
   , ( lkr
     , Param⊑Contra-trans p⊑q q⊑r
     )
   )
-  , Params⊑Contra-trans ps⊑qs qs⊑rs
+  , OldParamsPreserved-trans ps≤qs qs≤rs
   where
-    r-wit :
-      Σ Parameter (λ r →
-           lookupParam (Parameter.location p) (Parameter.name p) rs ≡ just r
-         × Param⊑Contra q r)
-    r-wit = Params⊑Contra-lookup qs⊑rs lkq
+    r-wit =
+      OldParamsPreserved-lookup qs≤rs lkq
 
-    r   : Parameter
     r   = fst r-wit
-
-    lkr : lookupParam (Parameter.location p) (Parameter.name p) rs ≡ just r
     lkr = fst (snd r-wit)
-
-    q⊑r : Param⊑Contra q r
     q⊑r = snd (snd r-wit)
 ```
+
+```agda
+NewRequiredSafe-trans :
+  ∀ {ps qs rs}
+  → NewRequiredSafe ps qs
+  → NewRequiredSafe qs rs
+  → NewRequiredSafe ps rs
+  
+NewRequiredSafe-trans {ps} {qs} {rs}
+  ps≤qs qs≤rs {ℓ} {k} {p} lk reqTrue =
+  let (q , (lkq , reqq)) = qs≤rs {ℓ} {k} {p} lk reqTrue
+      (p' , (lkp , reqp)) = ps≤qs {ℓ} {k} {q} lkq reqq
+  in (p' , (lkp , reqp))
+```
+
+```agda
+Params⊑Contra-trans :
+  ∀ {ps qs rs}
+  → Params⊑Contra ps qs
+  → Params⊑Contra qs rs
+  → Params⊑Contra ps rs
+
+Params⊑Contra-trans {ps} {qs} {rs}
+  (psOld , psReq)
+  (qsOld , qsReq)
+  =
+  ( OldParamsPreserved-trans psOld qsOld
+  , NewRequiredSafe-trans {ps} {qs} {rs} psReq qsReq
+  )
+```
+
+---
 
 ### 2.3 Body transitivity
 
@@ -294,6 +348,8 @@ Body⊑Contra-trans
 ... | HasBodyP s₀ | HasBodyP s₁ | HasBodyP s₂ =
       ⊑Co-trans q p
 ```
+
+---
 
 ### 2.4 Response transitivity
 
@@ -360,6 +416,8 @@ Resps⊑Co-trans {rs = response st s :: rs}
     t⊑u : Schema⊑ Co t u
     t⊑u = snd (snd u-wit)
 ```
+
+---
 
 ### 2.5 Endpoint transitivity
 
