@@ -40,7 +40,59 @@ List≟ eq (x :: xs) (y :: ys)
         no (λ { refl → neq refl })
 ```
 
-## 2. Method equality
+---
+
+## 2. Base equality
+
+```agda
+Base≟ : (a b : Base) → Dec (a ≡ b)
+Base≟ integer integer = yes refl
+Base≟ string  string  = yes refl
+Base≟ boolean boolean = yes refl
+Base≟ number  number  = yes refl
+Base≟ object  object  = yes refl
+Base≟ array   array   = yes refl
+
+Base≟ integer string  = no (λ ())
+Base≟ integer boolean = no (λ ())
+Base≟ integer number  = no (λ ())
+Base≟ integer object  = no (λ ())
+Base≟ integer array   = no (λ ())
+
+Base≟ string  integer = no (λ ())
+Base≟ string  boolean = no (λ ())
+Base≟ string  number  = no (λ ())
+Base≟ string  object  = no (λ ())
+Base≟ string  array   = no (λ ())
+
+Base≟ boolean integer = no (λ ())
+Base≟ boolean string  = no (λ ())
+Base≟ boolean number  = no (λ ())
+Base≟ boolean object  = no (λ ())
+Base≟ boolean array   = no (λ ())
+
+Base≟ number  integer = no (λ ())
+Base≟ number  string  = no (λ ())
+Base≟ number  boolean = no (λ ())
+Base≟ number  object  = no (λ ())
+Base≟ number  array   = no (λ ())
+
+Base≟ object  integer = no (λ ())
+Base≟ object  string  = no (λ ())
+Base≟ object  boolean = no (λ ())
+Base≟ object  number  = no (λ ())
+Base≟ object  array   = no (λ ())
+
+Base≟ array   integer = no (λ ())
+Base≟ array   string  = no (λ ())
+Base≟ array   boolean = no (λ ())
+Base≟ array   number  = no (λ ())
+Base≟ array   object  = no (λ ())
+```
+
+---
+
+## 3. Method equality
 
 ```agda
 Method≟ : (a b : Method) → Dec (a ≡ b)
@@ -78,7 +130,7 @@ Method≟ PATCH  DELETE = no (λ ())
 
 ---
 
-## 3. Status equality
+## 4. Status equality
 
 ```agda
 Status≟ : (a b : Status) → Dec (a ≡ b)
@@ -112,7 +164,7 @@ Status≟-refl {NoContent}  = refl
 
 ---
 
-## 4. ParamLocation equality
+## 5. ParamLocation equality
 
 ```agda
 ParamLocation≟ : (a b : ParamLocation) → Dec (a ≡ b)
@@ -124,7 +176,7 @@ ParamLocation≟ query path  = no (λ ())
 
 ---
 
-## 5. PathSegment equality
+## 6. PathSegment equality
 
 ```agda
 PathSegment≟ : (a b : PathSegment) → Dec (a ≡ b)
@@ -145,7 +197,7 @@ PathSegment≟ (param _) (lit _) = no (λ ())
 
 ---
 
-## 6. Path equality
+## 7. Path equality
 
 ```agda
 Path≟ : (p q : Path) → Dec (p ≡ q)
