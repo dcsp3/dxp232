@@ -21,10 +21,12 @@ open import WellFormed.Core
 open import WellFormed.Lemmas
 
 open import Semantics.Variance
-open import Semantics.SchemaRefinement
 
+open import Semantics.SchemaRefinement
 open import Semantics.SchemaRefinementProperties
   using (⊑Co-refl; ⊑Co-trans; prim≢array; prim≢object)
+
+open import Semantics.EndpointRefinement
 
 open Σ using (fst ; snd)
 ```
@@ -356,3 +358,156 @@ Cross-shape cases follow from contradictory type equalities.
 ```
 
 ---
+
+## 2. Decidability of Endpoint Refinement
+
+Endpoint refinement reduces to alignment of parameters, request bodies, and responses. Since schema refinement is decidable, endpoint refinement is obtained by structural decomposition and finite lookup over components.
+
+### 2.1 Decidable Parameter Refinement
+
+```agda
+ReqWeakens? : (old new : Bool) → Dec (ReqWeakens old new)
+ReqWeakens? old false = yes (λ ())
+ReqWeakens? true  true  = yes (λ _ → refl)
+ReqWeakens? false true  = no (λ req → false≢true (req refl))
+```
+
+```agda
+Param⊑Contra? : (p q : Parameter) → Dec (Param⊑Contra p q)
+Param⊑Contra? p q
+  with ParamLocation≟ (Parameter.location p) (Parameter.location q)
+... | no ¬loc = no (λ r → ¬loc (fst r))
+... | yes loc
+  with Parameter.name p ≟ Parameter.name q
+... | no ¬name = no (λ r → ¬name (fst (snd r)))
+... | yes name
+  with Base≟ (Parameter.schema p) (Parameter.schema q)
+... | no ¬sch = no (λ r → ¬sch (fst (snd (snd r))))
+... | yes sch
+  with ReqWeakens? (Parameter.required p) (Parameter.required q)
+... | no ¬req = no (λ r → ¬req (snd (snd (snd r))))
+... | yes req = yes (loc , (name , (sch , req)))
+```
+
+```agda
+OldParamsPreserved? : (old new : List Parameter) → Dec (OldParamsPreserved old new)
+OldParamsPreserved? [] new = yes tt
+OldParamsPreserved? (p :: ps) new
+  with lookupParam (Parameter.location p) (Parameter.name p) new in lkeq
+... | nothing =
+      no (λ r →
+        let
+          lk = fst (snd (fst r))
+        in
+          just≢nothing (trans (sym lk) refl))
+
+... | just q
+  with Param⊑Contra? p q
+... | no ¬r =
+      no (λ r →
+        let
+          q'    = fst (fst r)
+          lk    = fst (snd (fst r))
+          pc    = snd (snd (fst r))
+          q'≡q  = just-inj (trans (sym lk) refl)
+        in
+          ¬r (subst (Param⊑Contra p) q'≡q pc))
+
+... | yes r
+  with OldParamsPreserved? ps new
+... | no ¬rest = no (λ r → ¬rest (snd r))
+... | yes rest = yes ((q , (refl , r)) , rest)
+```
+
+```agda
+NewRequiredSafe? : (old new : List Parameter) → Unique (paramKeys new) → Dec (NewRequiredSafe old new)
+NewRequiredSafe? old [] _ = yes (λ ())
+NewRequiredSafe? old (h :: rest)
+  (uniq::_ h∉rest uniqRest)
+  with Parameter.required h in hReq
+  | lookupParam (Parameter.location h) (Parameter.name h) old in lkOldH
+  | NewRequiredSafe? old rest uniqRest
+  
+... | false | _ | yes tail = yes (λ {ℓ} {k} {p} lk req →
+    tail {ℓ} {k} {p} (strip lk req) req)
+  where
+    strip : ∀ {ℓ k p}
+          → lookupParam ℓ k (h :: rest) ≡ just p
+          → Parameter.required p ≡ true
+          → lookupParam ℓ k rest ≡ just p
+    strip {ℓ} {k} {p} lk req
+      with ParamLocation≟ ℓ (Parameter.location h)
+    ... | no  _    = lk
+    ... | yes refl
+      with k ≟ Parameter.name h
+    ... | no  _    = lk
+    ... | yes refl =
+            ⊥-elim (false≢true (trans (sym hReq)
+                                  (subst (λ x → Parameter.required x ≡ true)
+                                    (sym (just-inj lk)) req)))
+
+... | false | _ | no ¬tail =
+    no λ safe → ¬tail λ {ℓ} {k} {p} lk req → safe (lift lk) req
+  where
+    lift : ∀ {ℓ k p}
+         → lookupParam ℓ k rest ≡ just p
+         → lookupParam ℓ k (h :: rest) ≡ just p
+    lift {ℓ} {k} lk
+      with ParamLocation≟ ℓ (Parameter.location h)
+    ... | no  _    = lk
+    ... | yes refl with k ≟ Parameter.name h
+    ... | no  _    = lk
+    ... | yes refl = ⊥-elim (∉-elim h∉rest (lookupParam→∈ lk))
+
+... | true | nothing | _ =
+    no λ safe →
+      let (pOld , (lkOld , _)) = safe {Parameter.location h} {Parameter.name h} {h} lookupParam-here hReq
+      in just≢nothing (trans (sym lkOld) lkOldH)
+
+... | true | just pOld | tailDec
+    with Parameter.required pOld in pOldReq
+    | tailDec
+
+... | false | _ =
+      no λ safe →
+        let (pOld' , (lkOld' , reqOld')) = safe {Parameter.location h} {Parameter.name h} {h} lookupParam-here hReq
+            pOld≡pOld' = just-inj (trans (sym lkOld') lkOldH)
+        in false≢true (trans (sym pOldReq) (trans (cong Parameter.required (sym pOld≡pOld')) reqOld'))
+
+... | true | no ¬tail =
+      no λ safe → ¬tail λ {ℓ} {k} {p} lk req → safe (lift lk) req
+  where
+    lift : ∀ {ℓ k p}
+         → lookupParam ℓ k rest ≡ just p
+         → lookupParam ℓ k (h :: rest) ≡ just p
+    lift {ℓ} {k} lk
+      with ParamLocation≟ ℓ (Parameter.location h)
+    ... | no  _    = lk
+    ... | yes refl with k ≟ Parameter.name h
+    ... | no  _    = lk
+    ... | yes refl = ⊥-elim (∉-elim h∉rest (lookupParam→∈ lk))
+
+... | true | yes tail = yes dispatch
+  where
+    dispatch : NewRequiredSafe old (h :: rest)
+    dispatch {ℓ} {k} {p} lk req
+      with ParamLocation≟ ℓ (Parameter.location h)
+    ... | no  _    = tail lk req
+    ... | yes refl with k ≟ Parameter.name h
+    ... | no  _    = tail lk req
+    ... | yes refl = pOld , (lkOldH , pOldReq)
+```
+
+```agda
+Params⊑Contra? : (old new : List Parameter) → Unique (paramKeys new) → Dec (Params⊑Contra old new)
+Params⊑Contra? old new uniq
+  with OldParamsPreserved? old new
+  | NewRequiredSafe? old new uniq
+... | no ¬old | _       = no (λ r → ¬old (fst r))
+... | yes old | no ¬new = no (λ r → ¬new (snd r))
+... | yes old | yes new = yes (old , new)
+```
+
+---
+
+### 2.2 Decidable Body Refinement
