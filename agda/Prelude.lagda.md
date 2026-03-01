@@ -15,6 +15,8 @@ postulate String : Set
 data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x
 
+{-# BUILTIN EQUALITY _≡_ #-}
+
 data ⊤ : Set where
   tt : ⊤
 
