@@ -23,6 +23,9 @@ open import WellFormed.Lemmas
 open import Semantics.Variance
 open import Semantics.SchemaRefinement
 
+open import Semantics.SchemaRefinementProperties
+  using (⊑Co-refl; ⊑Co-trans; prim≢array; prim≢object)
+
 open Σ using (fst ; snd)
 ```
 
@@ -108,4 +111,73 @@ PropsRefine? R? ((k , s) :: ps) qs
 
 ### 1.3 Decidable Covariant Schema Refinement
 
-Schema⊑Co? : ∀ {s t} → WFSchema s → WFSchema t → Dec (Schema⊑Co s t)
+```agda
+Schema⊑Co? :
+  ∀ {s t}
+  → WFSchema s
+  → WFSchema t
+  → Dec (Schema⊑Co s t)
+```
+
+### Primitive cases
+
+```agda
+Schema⊑Co? {s} {t}
+  wfS@(wf-prim primS _ _ _)
+  wfT@(wf-prim primT _ _ _)
+  with Base≟ (Schema.type s) (Schema.type t)
+... | yes refl =
+      yes (⊑-prim wfS wfT primS primT refl)
+
+... | no neq =
+      no impossible
+  where
+    impossible : Schema⊑Co s t → ⊥
+    impossible (⊑-prim _ _ _ _ eq) = neq eq
+    impossible (⊑-array _ _ tyS _ _ _ _) =
+      prim≢array (subst IsPrimitive tyS primS)
+    impossible (⊑-object _ _ tyS _ _ _) =
+      prim≢object (subst IsPrimitive tyS primS)
+      
+Schema⊑Co? {s} {t}
+  (wf-prim primS _ _ _)
+  (wf-array tyT _ _ _ _) =
+  no impossible
+  where
+    impossible : Schema⊑Co s t → ⊥
+
+    impossible (⊑-prim _ _ _ _ eq) =
+      prim≢array
+        (subst IsPrimitive
+          (trans eq tyT)
+          primS)
+
+    impossible (⊑-array _ _ tyS _ _ _ _) =
+      prim≢array (subst IsPrimitive tyS primS)
+
+    impossible (⊑-object _ _ tyS _ _ _) =
+      prim≢object (subst IsPrimitive tyS primS)
+
+Schema⊑Co? {s} {t}
+  (wf-prim primS _ _ _)
+  (wf-object tyT _ _ _ _ _) =
+  no impossible
+  where
+    impossible : Schema⊑Co s t → ⊥
+
+    impossible (⊑-prim _ _ _ _ eq) =
+      prim≢object
+        (subst IsPrimitive
+          (trans eq tyT)
+          primS)
+
+    impossible (⊑-array _ _ tyS _ _ _ _) =
+      prim≢array (subst IsPrimitive tyS primS)
+
+    impossible (⊑-object _ _ tyS _ _ _) =
+      prim≢object (subst IsPrimitive tyS primS)
+```
+
+### Array cases
+
+
