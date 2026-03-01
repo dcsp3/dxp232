@@ -82,13 +82,15 @@ lookupResp st (response st' s :: rs) with Status≟ st st'
 
 ### 1.2 Lookup computation lemmas
 
-
 The refinement relations below use lookup to align list-based components.
 To make the properties proofs go through, we record the two basic lookup
 facts we will use repeatedly:
 
 - **here**: looking up the head key succeeds immediately
 - **there**: if the head key does not match, lookup proceeds into the tail
+
+We also record a basic membership property:
+- if lookup succeeds, then the searched key appears in the list of parameter keys.
 
 ```agda
 lookupParam-here :
@@ -119,6 +121,28 @@ lookupParam-there {h} {ℓ} {k} {ps} {p} head≢ ih
   with (k ≟ Parameter.name h)
 ...   | no _ = ih
 ...   | yes refl = ⊥-elim (head≢ refl)
+```
+
+```agda
+lookupParam→∈ :
+  ∀ {ℓ k p ps}
+  → lookupParam ℓ k ps ≡ just p
+  → (ℓ , k) ∈ paramKeys ps
+
+lookupParam→∈ {ps = []} ()
+
+lookupParam→∈ {ℓ} {k} {p} {q :: qs} lk
+  with ParamLocation≟ ℓ (Parameter.location q)
+... | no _ =
+      there (lookupParam→∈ lk)
+
+... | yes refl
+  with k ≟ Parameter.name q
+...   | no _ =
+        there (lookupParam→∈ lk)
+
+...   | yes refl =
+        here
 ```
 
 ```agda
