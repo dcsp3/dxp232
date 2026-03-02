@@ -511,3 +511,92 @@ Params⊑Contra? old new uniq
 ---
 
 ### 2.2 Decidable Body Refinement
+
+```agda
+Body⊑Contra? : ∀ {m n} → (eq : m ≡ n) → (b₀ : Body m) → (b₁ : Body n) → WFBody b₀ → WFBody b₁ → Dec (Body⊑Contra eq b₀ b₁)
+Body⊑Contra? refl NoBody       NoBody       _                _                = yes tt
+Body⊑Contra? refl NoBodyD      NoBodyD      _                _                = yes tt
+Body⊑Contra? refl (HasBody  s) (HasBody  t) (wf-hasBody  ws) (wf-hasBody  wt) = Schema⊑Co? wt ws
+Body⊑Contra? refl (HasBodyU s) (HasBodyU t) (wf-hasBodyU ws) (wf-hasBodyU wt) = Schema⊑Co? wt ws
+Body⊑Contra? refl (HasBodyP s) (HasBodyP t) (wf-hasBodyP ws) (wf-hasBodyP wt) = Schema⊑Co? wt ws
+```
+
+---
+
+### 2.3 Decidable Response Refinement
+
+```agda
+lookupResp-wf :
+    ∀ {st t} {rs : List Response}
+  → All WFResponse rs
+  → lookupResp st rs ≡ just t
+  → WFSchema t
+lookupResp-wf {st} {rs = response st' s :: rs} (all::_ (wf-response wfS) rest) lk
+  with Status≟ st st'
+... | no  _    = lookupResp-wf rest lk
+... | yes refl = subst WFSchema (just-inj lk) wfS
+lookupResp-wf {rs = []} all[] ()
+```
+
+```agda
+Resps⊑Co? : (old new : List Response) → All WFResponse old → All WFResponse new → Dec (Resps⊑Co old new)
+Resps⊑Co? [] new _ _ = yes tt
+Resps⊑Co? (response st s :: rs) new
+  (all::_ (wf-response wfS) wfRs)
+  wfNew
+  with lookupResp st new in lkeq
+... | nothing =
+      no λ r →
+        let (t , (lk , _)) = fst r
+        in just≢nothing (sym lk)
+... | just t
+  with Schema⊑Co? wfS (lookupResp-wf wfNew lkeq)
+  | Resps⊑Co? rs new wfRs wfNew
+... | no ¬sch | _ =
+      no λ r →
+        let (t' , (lk' , sch)) = fst r
+            t≡t' = just-inj (sym lk')
+        in ¬sch (subst (Schema⊑Co s) t≡t' sch)
+... | yes sch | no ¬tail = no λ r → ¬tail (snd r)
+... | yes sch | yes tail = yes ((t , (refl , sch)) , tail)
+```
+
+---
+
+### 2.4 Decidable Endpoint Refinement
+
+```agda
+wfEndpoint-paramUniq : ∀ {e} → WFEndpoint e → Unique (paramKeys (Endpoint.parameters e))
+wfEndpoint-paramUniq (wf-endpoint _ _ uniq _ _ _) = uniq
+
+wfEndpoint-body : ∀ {e} → WFEndpoint e → WFBody (Endpoint.body e)
+wfEndpoint-body (wf-endpoint _ _ _ body _ _) = body
+
+wfEndpoint-resps : ∀ {e} → WFEndpoint e → All WFResponse (Endpoint.responses e)
+wfEndpoint-resps (wf-endpoint _ _ _ _ resps _) = resps
+```
+
+```agda
+Endpoint⊑? : (eOld eNew : Endpoint) → WFEndpoint eOld → WFEndpoint eNew → Dec (Endpoint⊑ eOld eNew)
+Endpoint⊑? eOld eNew wfOld wfNew
+  with Path≟ (Endpoint.route eOld) (Endpoint.route eNew)
+... | no ¬route = no (λ { (⊑-endpoint _ _ route≡ _ _ _ _) → ¬route route≡ })
+... | yes route≡
+  with Method≟ (Endpoint.method eOld) (Endpoint.method eNew)
+... | no ¬method = no (λ { (⊑-endpoint _ _ _ method≡ _ _ _) → ¬method method≡ })
+... | yes refl
+  with Params⊑Contra? (Endpoint.parameters eOld) (Endpoint.parameters eNew) (wfEndpoint-paramUniq wfNew)
+... | no ¬params = no (λ { (⊑-endpoint _ _ _ _ params _ _) → ¬params params })
+... | yes params
+  with Body⊑Contra? refl (Endpoint.body eOld) (Endpoint.body eNew)
+                         (wfEndpoint-body wfOld) (wfEndpoint-body wfNew)
+... | no ¬body =
+    no (λ { (⊑-endpoint _ _ _ refl _ body _) → ¬body body })
+... | yes body
+  with Resps⊑Co? (Endpoint.responses eOld) (Endpoint.responses eNew)
+                 (wfEndpoint-resps wfOld) (wfEndpoint-resps wfNew)
+... | no ¬resps = no (λ { (⊑-endpoint _ _ _ _ _ _ resps) → ¬resps resps })
+... | yes resps = yes (⊑-endpoint wfOld wfNew route≡ refl params body resps)
+```
+
+---
