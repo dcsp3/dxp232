@@ -81,6 +81,12 @@ infixr 2 _×_
 
 ∃ : ∀ {A : Set} → (A → Set) → Set
 ∃ {A} P = Σ A P
+
+infixr 4 _∔_
+
+data _∔_ (A B : Set) : Set where
+  inl : A → A ∔ B
+  inr : B → A ∔ B
 ```
 
 ## Equality Utilities
@@ -136,11 +142,14 @@ data _∉_ {A : Set} (x : A) : List A → Set where
   notin[]  : x ∉ []
   notin::_ : ∀ {y ys} → x ≢ y → x ∉ ys → x ∉ (y :: ys)
 
-∉-elim :
-  ∀ {A : Set} {x : A} {xs : List A}
-  → x ∉ xs
-  → x ∈ xs
-  → ⊥
+∉-intro : ∀ {x : String} {xs : List String} → ¬ (x ∈ xs) → x ∉ xs
+∉-intro {xs = []} _ = notin[]
+∉-intro {x} {xs = y :: ys} ¬∈
+  with x ≟ y
+... | yes refl = ⊥-elim (¬∈ here)
+... | no  x≢y  = notin::_ x≢y (∉-intro (λ x∈ys → ¬∈ (there x∈ys)))
+
+∉-elim : ∀ {A : Set} {x : A} {xs : List A} → x ∉ xs → x ∈ xs → ⊥
 ∉-elim notin[] ()
 ∉-elim (notin::_ x≢y x∉ys) here        = x≢y refl
 ∉-elim (notin::_ _   x∉ys) (there x∈)  = ∉-elim x∉ys x∈
@@ -178,6 +187,46 @@ xs ⊆ ys = All (λ x → x ∈ ys) xs
 ⊆-trans : ∀ {A : Set} {xs ys zs : List A} → xs ⊆ ys → ys ⊆ zs → xs ⊆ zs
 ⊆-trans xs⊆ys ys⊆zs =
   All-map (λ {x} x∈ys → All-∈ ys⊆zs x∈ys) xs⊆ys
+
+_∈?_ : (x : String) → (xs : List String) → Dec (x ∈ xs)
+_∈?_ x [] = no (λ ())
+_∈?_ x (y :: ys) with x ≟ y
+... | yes refl = yes here
+... | no x≢y
+    with x ∈? ys
+...   | yes p  = yes (there p)
+...   | no  np =
+          no (λ {
+            here      → x≢y refl
+          ; (there q) → np q
+          })
+
+_⊆?_ : (xs ys : List String) → Dec (xs ⊆ ys)
+_⊆?_ [] ys = yes all[]
+_⊆?_ (x :: xs) ys
+  with x ∈? ys
+... | no x∉ys =
+      no (λ {
+        (all::_ px _) → x∉ys px
+      })
+
+... | yes x∈ys
+    with xs ⊆? ys
+...   | no xs⊈ys =
+          no (λ {
+            (all::_ _ rest) → xs⊈ys rest
+          })
+...   | yes xs⊆ys =
+          yes (all::_ x∈ys xs⊆ys)
+
+⊆-counterexample : ∀ {xs ys} → ¬ (xs ⊆ ys) → Σ String (λ k → k ∈ xs × k ∉ ys)
+⊆-counterexample {[]} ¬sub = ⊥-elim (¬sub all[])
+⊆-counterexample {x :: xs} {ys} ¬sub
+  with x ∈? ys
+... | no  x∉ys = x , (here , ∉-intro x∉ys)
+... | yes x∈ys
+  with ⊆-counterexample (λ rest → ¬sub (all::_ x∈ys rest))
+... | (k , (k∈ , k∉)) = k , (there k∈ , k∉)
 ```
 
 ## Association-list utils
