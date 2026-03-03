@@ -27,6 +27,7 @@ open import Semantics.SchemaRefinementProperties
   using (⊑Co-refl; ⊑Co-trans; prim≢array; prim≢object)
 
 open import Semantics.EndpointRefinement
+open import Semantics.APIRefinement
 
 open Σ using (fst ; snd)
 ```
@@ -600,3 +601,124 @@ Endpoint⊑? eOld eNew wfOld wfNew
 ```
 
 ---
+
+## 3. Decidability of API Refinement
+
+We now lift refinement decidability to the level of whole APIs. Since schema and endpoint refinement are already decidable, API refinement reduces to finite alignment of components and endpoints via lookup, followed by recursive checks on matched entries. As before, well-formedness guarantees uniqueness of keys, ensuring that alignment is computable and unambiguous.
+
+### 3.1 Decidable Component Refinement
+
+```agda
+lookupComponent-wf : ∀ {k s cs} → All WFSchema (values cs) → lookupComponent k cs ≡ just s → WFSchema s
+lookupComponent-wf {k} {cs = []} _ ()
+lookupComponent-wf {k} {cs = (k' , s') :: cs} (all::_ wfS rest) lk
+  with k ≟ k'
+... | yes refl = subst WFSchema (just-inj lk) wfS
+... | no  _    = lookupComponent-wf rest lk
+```
+
+```agda
+Components⊑? : (old new : List (String × Schema)) → All WFSchema (values old) → All WFSchema (values new) → Dec (Components⊑ old new)
+Components⊑? [] new _ _ = yes tt
+Components⊑? ((k , s) :: cs) new (all::_ wfS wfRest) wfNew
+  with lookupComponent k new in lkeq
+... | nothing = no λ r → just≢nothing (sym (fst (snd (fst r))))
+... | just t
+
+  with Schema⊑Co? wfS (lookupComponent-wf wfNew lkeq)
+  | Components⊑? cs new wfRest wfNew  
+... | no ¬sch | _ = no λ r →
+      let (t' , (lk' , sch)) = fst r
+          t≡t' = just-inj (sym lk')
+      in ¬sch (subst (Schema⊑Co s) t≡t' sch)
+... | yes sch | no ¬rest = no λ r → ¬rest (snd r)
+... | yes sch | yes rest = yes ((t , (refl , sch)) , rest)
+```
+
+---
+
+### 3.2 Decidable Endpoint List Refinement
+
+
+```agda
+lookupEndpoint-wf : ∀ {r m e es} → All WFEndpoint es → lookupEndpoint r m es ≡ just e → WFEndpoint e
+lookupEndpoint-wf {r} {m} {e} {[]} _ ()
+lookupEndpoint-wf {r} {m} {e} {h :: es} (all::_ wfH wfRest) lk
+  with Path≟ r (Endpoint.route h)
+... | no _ = lookupEndpoint-wf wfRest lk
+... | yes refl
+  with Method≟ m (Endpoint.method h)
+...   | no _ = lookupEndpoint-wf wfRest lk
+...   | yes refl = subst WFEndpoint (just-inj lk) wfH
+```
+
+```agda
+Endpoints⊑? : (old new : List Endpoint) → All WFEndpoint old → All WFEndpoint new → Dec (Endpoints⊑ old new)
+Endpoints⊑? [] new _ _ = yes tt
+Endpoints⊑? (e :: es) new (all::_ wfE wfRest)
+  wfNew
+  with lookupEndpoint
+         (Endpoint.route e)
+         (Endpoint.method e)
+         new
+         in lkeq
+
+... | nothing =
+    no λ r →
+      let (e' , (lk , _)) = fst r
+      in just≢nothing (sym lk)
+
+... | just e'
+  with Endpoint⊑? e e' wfE (lookupEndpoint-wf wfNew lkeq)
+  | Endpoints⊑? es new wfRest wfNew
+
+... | no ¬ep | _ =
+    no λ r →
+      let (e'' , (lk' , ep)) = fst r
+          e''≡e' = just-inj (sym lk')
+      in ¬ep (subst (Endpoint⊑ e) e''≡e' ep)
+
+... | yes ep | no ¬rest =
+    no λ r → ¬rest (snd r)
+
+... | yes ep | yes rest =
+    yes ((e' , (refl , ep)) , rest)
+```
+
+---
+
+### 3.3 Decidable API Refinement
+
+```agda
+wfAPI-components : ∀ {a} → WFAPI a → All WFSchema (values (API.components a))
+wfAPI-components (wf-api wfComps _ _ _) = wfComps
+
+wfAPI-paths : ∀ {a} → WFAPI a → All WFEndpoint (API.paths a)
+wfAPI-paths (wf-api _ _ wfPaths _) = wfPaths
+```
+
+```agda
+API⊑? : (aOld aNew : API) → WFAPI aOld → WFAPI aNew → Dec (API⊑ aOld aNew)
+API⊑? aOld aNew wfOld wfNew
+  with Components⊑?
+         (API.components aOld)
+         (API.components aNew)
+         (wfAPI-components wfOld)
+         (wfAPI-components wfNew)
+
+... | no ¬comps =
+      no (λ { (⊑-api _ _ comps _) → ¬comps comps })
+
+... | yes comps
+  with Endpoints⊑?
+         (API.paths aOld)
+         (API.paths aNew)
+         (wfAPI-paths wfOld)
+         (wfAPI-paths wfNew)
+
+... | no ¬eps =
+      no (λ { (⊑-api _ _ _ eps) → ¬eps eps })
+
+... | yes eps =
+      yes (⊑-api wfOld wfNew comps eps)
+```
