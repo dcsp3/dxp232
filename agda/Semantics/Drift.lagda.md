@@ -77,6 +77,11 @@ data SchemaDrift : Schema → Schema → Set where
     → lookupProp k (Schema.properties t) ≡ just ti
     → SchemaDrift si ti
     → SchemaDrift s t
+
+  ShapeMismatch :
+      ∀ {s t}
+    → Schema.type s ≢ Schema.type t
+    → SchemaDrift s t
 ```
 
 ## 2. Endpoint Drift
@@ -239,6 +244,10 @@ SchemaDriftSound (PropertyRemoved tyS _ _ _)
 SchemaDriftSound (PropertyDrift tyS _ _ _ _)
                  (⊑-prim _ _ primS _ _)
                    = prim≢object (subst IsPrimitive (tyS) primS)
+
+SchemaDriftSound (ShapeMismatch s≢t)
+                 (⊑-prim _ _ _ _ eq)
+                   = s≢t eq
 ```
 
 ### `⊑-array` cases
@@ -267,6 +276,10 @@ SchemaDriftSound (PropertyRemoved tyS _ _ _)
 SchemaDriftSound (PropertyDrift tyS _ _ _ _)
                  (⊑-array _ _ tyS' _ _ _ _) =
                    array≢object (trans (sym tyS') tyS)
+
+SchemaDriftSound (ShapeMismatch s≢t)
+                 (⊑-array _ _ tyS tyT _ _ _)
+                   = s≢t (trans tyS (sym tyT))
 ```
 
 ### `⊑-object` cases
@@ -310,6 +323,10 @@ SchemaDriftSound (PropertyDrift {s} {t} {k} {ti = ti} _ _ lkO lkN sd)
                                               (just-inj (trans (sym lkN) (fst (snd hd))))
                                               (subst (λ x → SchemaDrift x ti) (sym (just-inj lk)) sd))
                                           (snd (snd hd))
+
+SchemaDriftSound (ShapeMismatch s≢t)
+                 (⊑-object _ _ tyS tyT _ _) =
+                   s≢t (trans tyS (sym tyT))
 ```
 
 ---
