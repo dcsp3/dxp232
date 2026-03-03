@@ -68,6 +68,14 @@ lookupProp-insert-after-head :
 lookupProp-insert-after-head {x} {k0} {s0} {k} {s} {target} x≢k with x ≟ k0
 ... | yes _ = refl
 ... | no  _ = lookupProp-skip {k = x} {k0 = k} {s = s} {ps = target} x≢k
+
+-- If a key is absent from the key list, lookup returns nothing
+lookupProp-∉-nothing : ∀ {k ps} → k ∉ keys ps → lookupProp k ps ≡ nothing
+lookupProp-∉-nothing {k} {[]} _ = refl
+lookupProp-∉-nothing {k} {(k' , _) :: ps} (notin::_ k≢k' k∉rest)
+  with k ≟ k'
+... | yes refl = ⊥-elim (k≢k' refl)
+... | no  _    = lookupProp-∉-nothing k∉rest
 ```
 
 ---
