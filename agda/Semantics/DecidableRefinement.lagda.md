@@ -22,10 +22,10 @@ open import Semantics.SchemaRefinement
 open import Semantics.SchemaRefinementProperties
   using (lookupProp-here; lookupProp-skip; lookupProp-∉-nothing; ⊑Co-refl; ⊑Co-trans; prim≢array; prim≢object)
 
-open import Semantics.Drift
-
 open import Semantics.EndpointRefinement
 open import Semantics.APIRefinement
+
+open import Semantics.Drift
 
 open Σ using (fst ; snd)
 ```
@@ -232,3 +232,187 @@ mutual
 The procedure is total and structurally recursive on the schema shape. Each negative branch corresponds directly to one of the constructors of `SchemaDrift`, ensuring that failure always carries a structured explanation.
 
 ---
+
+## 2. Decidability of Endpoint Refinement
+
+Endpoint refinement decomposes into four independent checks:
+
+1. parameter contravariance,
+2. request body contravariance,
+3. response covariance, and
+4. route/method identity.
+
+Each check is decided separately and failures are packaged into the corresponding `EndpointDrift` constructor.
+
+
+### 2.1 Decidable Parameter Refinement
+
+Failures are recorded as a `ParamFailure`, which is later converted into an `EndpointDrift` by the endpoint-level procedure.
+
+### Helpers
+
+```agda
+data ParamFailure (old new : List Parameter) : Set where
+
+  ParamRemoved :
+      (ℓ : ParamLocation) (k : String)
+    → lookupParam ℓ k old ≢ nothing
+    → lookupParam ℓ k new ≡ nothing
+    → ParamFailure old new
+
+  ParamSchemaChanged :
+        (p₀ p₁ : Parameter)
+      → Parameter.location p₀ ≡ Parameter.location p₁
+      → Parameter.name p₀ ≡ Parameter.name p₁
+      → lookupParam (Parameter.location p₀) (Parameter.name p₀) old ≡ just p₀
+      → lookupParam (Parameter.location p₁) (Parameter.name p₁) new ≡ just p₁
+      → Parameter.schema p₀ ≢ Parameter.schema p₁
+      → ParamFailure old new
+
+  RequiredWeakened :
+        (p₀ p₁ : Parameter)
+      → Parameter.location p₀ ≡ Parameter.location p₁
+      → Parameter.name p₀ ≡ Parameter.name p₁
+      → lookupParam (Parameter.location p₀) (Parameter.name p₀) old ≡ just p₀
+      → lookupParam (Parameter.location p₁) (Parameter.name p₁) new ≡ just p₁
+      → Parameter.required p₀ ≡ false
+      → Parameter.required p₁ ≡ true
+      → ParamFailure old new
+
+  NewRequiredParam :
+      (ℓ : ParamLocation) (k : String) (p : Parameter)
+    → lookupParam ℓ k old ≡ nothing
+    → lookupParam ℓ k new ≡ just p
+    → Parameter.required p ≡ true
+    → ParamFailure old new
+```
+
+```agda
+paramFailure→EndpointDrift :
+    ∀ {e₀ e₁}
+  → ParamFailure (Endpoint.parameters e₀) (Endpoint.parameters e₁)
+  → EndpointDrift e₀ e₁
+paramFailure→EndpointDrift (ParamRemoved ℓ k notNoth missing) =
+  ParameterRemoved notNoth missing
+paramFailure→EndpointDrift (ParamSchemaChanged p₀ p₁ loc≡ name≡ lk₀ lk₁ sch≢) =
+  ParameterSchemaChanged loc≡ name≡ lk₀ lk₁ sch≢
+paramFailure→EndpointDrift (RequiredWeakened p₀ p₁ loc≡ name≡ lk₀ lk₁ req₀ req₁) =
+  RequiredParameterAdded loc≡ name≡ lk₀ lk₁ req₀ req₁
+paramFailure→EndpointDrift (NewRequiredParam ℓ k p lkOld lkNew req) =
+  NewRequiredParameter lkOld lkNew req
+```
+
+```agda
+liftParamFailure :
+    ∀ {p ps new}
+  → (Parameter.location p , Parameter.name p) ∉ paramKeys ps
+  → ParamFailure ps new
+  → ParamFailure (p :: ps) new
+
+liftParamFailure {p} {ps} p∉ (ParamRemoved ℓ k notNoth missing) =
+  ParamRemoved ℓ k notNoth' missing
+  where
+
+  notNoth' :
+    lookupParam ℓ k (p :: ps) ≢ nothing
+
+  notNoth' contra
+    with ParamLocation≟ ℓ (Parameter.location p)
+  ... | no _ =
+        notNoth contra
+
+  ... | yes refl
+    with k ≟ Parameter.name p
+  ...   | no _ =
+          notNoth contra
+
+  ...   | yes refl =
+          notNoth (lookupParam-∉-nothing p∉)
+    
+liftParamFailure {p} {ps} p∉ (ParamSchemaChanged p₀ p₁ loc≡ name≡ lk₀ lk₁ sch≢) = {!!}
+
+liftParamFailure {p} {ps} p∉ (RequiredWeakened p₀ p₁ loc≡ name≡ lk₀ lk₁ req₀ req₁) = {!!}
+
+liftParamFailure {p} p∉ (NewRequiredParam ℓ k q lkOld lkNew req) = {!!}
+```
+
+### Decision Procedure
+
+```agda
+
+OldParamsPreserved? :
+  (old new : List Parameter)
+  → Unique (paramKeys old)
+  → OldParamsPreserved old new ∔ ParamFailure old new
+
+OldParamsPreserved? [] new _ =
+  inl tt
+
+OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
+  with lookupParam (Parameter.location p) (Parameter.name p) new in lkeq
+... | nothing =
+  inr (ParamRemoved
+        (Parameter.location p)
+        (Parameter.name p)
+        (λ contra → just≢nothing (trans (sym (lookupParam-here {p} {ps})) contra))
+        lkeq)
+
+... | just q
+  with Base≟ (Parameter.schema p) (Parameter.schema q)
+
+-- schema mismatch
+... | no sch≢ =
+  inr (ParamSchemaChanged
+        p q
+        (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq))
+        (sym (lookupParam-name {Parameter.location p} {Parameter.name p} {new} {q} lkeq))
+        (lookupParam-here {p} {ps})
+        (lookupParam-key {p} {q} {new} lkeq)
+        sch≢)
+
+-- schema matches
+... | yes refl
+  with Parameter.required p in reqP | Parameter.required q in reqQ
+
+-- required strengthened
+... | false | true =
+  inr (RequiredWeakened
+        p q
+        (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq))
+        (sym (lookupParam-name     {Parameter.location p} {Parameter.name p} {new} {q} lkeq))
+        (subst
+           (λ r →
+              lookupParam (Parameter.location p) (Parameter.name p)
+                (record
+                   { name     = Parameter.name p
+                   ; location = Parameter.location p
+                   ; required = r
+                   ; schema   = Parameter.schema p
+                   } :: ps)
+              ≡ just p)
+           reqP
+           (lookupParam-here {p} {ps}))
+        (lookupParam-key {p} {q} {new} lkeq)                               
+        reqP
+        reqQ)
+
+-- safe cases → recurse
+
+
+-- required stays false
+... | false | false
+  with OldParamsPreserved? ps new uniqTail
+... | inl rest = inl ((q , (refl , (sym (lookupParam-location lkeq) , (sym (lookupParam-name lkeq) , (refl , (λ req≡true → ⊥-elim (false≢true (trans (sym reqQ) req≡true)))))))) , rest)
+... | inr pf = inr (liftParamFailure p∉tail pf)
+
+OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
+  | just q | yes refl | true | false
+  with OldParamsPreserved? ps new uniqTail
+... | inl rest = inl {!!}
+... | inr pf   = inr {!!}
+
+OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
+  | just q | yes refl | true | true
+  with OldParamsPreserved? ps new uniqTail
+... | inl rest = inl {!!}
+... | inr pf   = inr {!!}
