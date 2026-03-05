@@ -269,7 +269,7 @@ data ParamFailure (old new : List Parameter) : Set where
       → Parameter.schema p₀ ≢ Parameter.schema p₁
       → ParamFailure old new
 
-  RequiredWeakened :
+  RequiredParamAdded :
         (p₀ p₁ : Parameter)
       → Parameter.location p₀ ≡ Parameter.location p₁
       → Parameter.name p₀ ≡ Parameter.name p₁
@@ -278,13 +278,6 @@ data ParamFailure (old new : List Parameter) : Set where
       → Parameter.required p₀ ≡ false
       → Parameter.required p₁ ≡ true
       → ParamFailure old new
-
-  NewRequiredParam :
-      (ℓ : ParamLocation) (k : String) (p : Parameter)
-    → lookupParam ℓ k old ≡ nothing
-    → lookupParam ℓ k new ≡ just p
-    → Parameter.required p ≡ true
-    → ParamFailure old new
 ```
 
 ```agda
@@ -296,10 +289,8 @@ paramFailure→EndpointDrift (ParamRemoved ℓ k notNoth missing) =
   ParameterRemoved notNoth missing
 paramFailure→EndpointDrift (ParamSchemaChanged p₀ p₁ loc≡ name≡ lk₀ lk₁ sch≢) =
   ParameterSchemaChanged loc≡ name≡ lk₀ lk₁ sch≢
-paramFailure→EndpointDrift (RequiredWeakened p₀ p₁ loc≡ name≡ lk₀ lk₁ req₀ req₁) =
+paramFailure→EndpointDrift (RequiredParamAdded p₀ p₁ loc≡ name≡ lk₀ lk₁ req₀ req₁) =
   RequiredParameterAdded loc≡ name≡ lk₀ lk₁ req₀ req₁
-paramFailure→EndpointDrift (NewRequiredParam ℓ k p lkOld lkNew req) =
-  NewRequiredParameter lkOld lkNew req
 ```
 
 ```agda
@@ -329,17 +320,27 @@ liftParamFailure {p} {ps} p∉ (ParamRemoved ℓ k notNoth missing) =
   ...   | yes refl =
           notNoth (lookupParam-∉-nothing p∉)
     
-liftParamFailure {p} {ps} p∉ (ParamSchemaChanged p₀ p₁ loc≡ name≡ lk₀ lk₁ sch≢) = {!!}
+liftParamFailure {p} {ps} p∉ (ParamSchemaChanged p₀ p₁ loc≡ name≡ lk₀ lk₁ sch≢) =
+  ParamSchemaChanged p₀ p₁ loc≡ name≡
+    (lookupParam-there
+      (λ eq → ∉-elim p∉ (subst (λ x → x ∈ paramKeys ps) (sym eq) (lookupParam→∈ lk₀)))
+      lk₀)
+    lk₁
+    sch≢
 
-liftParamFailure {p} {ps} p∉ (RequiredWeakened p₀ p₁ loc≡ name≡ lk₀ lk₁ req₀ req₁) = {!!}
-
-liftParamFailure {p} p∉ (NewRequiredParam ℓ k q lkOld lkNew req) = {!!}
+liftParamFailure {p} {ps} p∉ (RequiredParamAdded p₀ p₁ loc≡ name≡ lk₀ lk₁ req₀ req₁) =
+  RequiredParamAdded p₀ p₁ loc≡ name≡
+    (lookupParam-there
+      (λ eq → ∉-elim p∉ (subst (λ x → x ∈ paramKeys ps) (sym eq) (lookupParam→∈ lk₀)))
+      lk₀)
+    lk₁
+    req₀
+    req₁
 ```
 
 ### Decision Procedure
 
 ```agda
-
 OldParamsPreserved? :
   (old new : List Parameter)
   → Unique (paramKeys old)
@@ -376,7 +377,7 @@ OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
 
 -- required strengthened
 ... | false | true =
-  inr (RequiredWeakened
+  inr (RequiredParamAdded
         p q
         (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq))
         (sym (lookupParam-name     {Parameter.location p} {Parameter.name p} {new} {q} lkeq))
@@ -398,21 +399,23 @@ OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
 
 -- safe cases → recurse
 
-
 -- required stays false
 ... | false | false
   with OldParamsPreserved? ps new uniqTail
-... | inl rest = inl ((q , (refl , (sym (lookupParam-location lkeq) , (sym (lookupParam-name lkeq) , (refl , (λ req≡true → ⊥-elim (false≢true (trans (sym reqQ) req≡true)))))))) , rest)
-... | inr pf = inr (liftParamFailure p∉tail pf)
+... | inl rest = inl ((q , (refl , (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (sym (lookupParam-name {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (refl , (λ req≡true → ⊥-elim (false≢true (trans (sym reqQ) req≡true)))))))) , rest)
+
+... | inr pf   = inr (liftParamFailure p∉tail pf)
 
 OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
   | just q | yes refl | true | false
   with OldParamsPreserved? ps new uniqTail
-... | inl rest = inl {!!}
-... | inr pf   = inr {!!}
+... | inl rest = inl ((q , (refl , (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (sym (lookupParam-name {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (refl , (λ req≡true → ⊥-elim (false≢true (trans (sym reqQ) req≡true)))))))) , rest)
+
+... | inr pf   = inr (liftParamFailure p∉tail pf)
 
 OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
   | just q | yes refl | true | true
   with OldParamsPreserved? ps new uniqTail
-... | inl rest = inl {!!}
-... | inr pf   = inr {!!}
+... | inl rest = inl ((q , (refl , (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (sym (lookupParam-name {Parameter.location p} {Parameter.name p} {new} {q}  lkeq) , (refl , (λ _ → refl)))))) , rest)
+... | inr pf   = inr (liftParamFailure p∉tail pf)
+
