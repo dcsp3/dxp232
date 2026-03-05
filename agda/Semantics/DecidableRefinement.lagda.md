@@ -247,7 +247,11 @@ Each check is decided separately and failures are packaged into the correspondin
 
 ### 2.1 Decidable Parameter Refinement
 
-Failures are recorded as a `ParamFailure`, which is later converted into an `EndpointDrift` by the endpoint-level procedure.
+Parameter contravariance splits into two checks: `OldParamsPreserved?` scans the old list ensuring every parameter is preserved compatibly, and `NewRequiredSafe?` scans the new list ensuring no new required parameter is introduced. Failures are recorded separately and converted to `EndpointDrift`.
+
+---
+
+### `OldParamsPreserved`
 
 ### Helpers
 
@@ -338,7 +342,7 @@ liftParamFailure {p} {ps} p∉ (RequiredParamAdded p₀ p₁ loc≡ name≡ lk�
     req₁
 ```
 
-### Decision Procedure
+### Decision
 
 ```agda
 OldParamsPreserved? :
@@ -418,4 +422,304 @@ OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
   with OldParamsPreserved? ps new uniqTail
 ... | inl rest = inl ((q , (refl , (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (sym (lookupParam-name {Parameter.location p} {Parameter.name p} {new} {q}  lkeq) , (refl , (λ _ → refl)))))) , rest)
 ... | inr pf   = inr (liftParamFailure p∉tail pf)
+```
+
+---
+
+### `NewRequiredSafe`
+
+### Helpers
+
+```agda
+data NewRequiredFailure (old new : List Parameter) : Set where
+  NewRequiredParam :
+      (ℓ : ParamLocation) (k : String) (p : Parameter)
+    → lookupParam ℓ k old ≡ nothing
+    → lookupParam ℓ k new ≡ just p
+    → Parameter.required p ≡ true
+    → NewRequiredFailure old new
+
+```
+---
+
+```agda
+liftNewRequiredFailure :
+  ∀ {old rest h}
+  → NewRequiredFailure old rest
+  → NewRequiredFailure old (h :: rest)
+
+liftNewRequiredFailure (NewRequiredParam ℓ k p lkOld lkNew req) =
+  NewRequiredParam ℓ k p lkOld (lookupParam-there {!!} lkNew) req
+```
+
+
+### Decision
+
+```agda
+lookupParam-strip :
+  ∀ {ℓ k p h rest}
+  → Parameter.required h ≡ false
+  → lookupParam ℓ k (h :: rest) ≡ just p
+  → Parameter.required p ≡ true
+  → lookupParam ℓ k rest ≡ just p
+
+lookupParam-strip {ℓ} {k} {p} {h} {rest} hReq lk req
+  with ParamLocation≟ ℓ (Parameter.location h)
+... | no _ = lk
+
+... | yes refl
+  with k ≟ Parameter.name h
+... | no _ = lk
+
+... | yes refl =
+      ⊥-elim
+        (false≢true
+          (trans
+            (trans (sym hReq) (cong Parameter.required (just-inj lk)))
+            req))
+```
+
+NewRequiredSafe? :
+  (old new : List Parameter)
+  → Unique (paramKeys new)
+  → NewRequiredSafe old new ∔ NewRequiredFailure old new
+
+NewRequiredSafe? old [] _ =
+  inl (λ ())
+
+NewRequiredSafe? old (h :: rest)
+  (uniq::_ h∉rest uniqRest)
+  with Parameter.required h in hReq
+     | lookupParam (Parameter.location h) (Parameter.name h) old in lkOldH
+     | NewRequiredSafe? old rest uniqRest
+
+-- optional parameter, tail safe
+... | false | _ | inl tail =
+  inl (λ {ℓ} {k} {p} lk req → tail (lookupParam-strip {ℓ} {k} {p} hReq lk req) req)
+
+-- optional parameter, tail fails
+... | false | _ | inr tailFail =
+  inr (liftNewRequiredFailure tailFail)
+
+-- required parameter missing in old
+... | true | nothing | _ =
+  inr (NewRequiredParam (Parameter.location h) (Parameter.name h) h lkOldH lookupParam-here hReq)
+
+-- required parameter exists in old
+... | true | just pOld | tailRes
+  with Parameter.required pOld in pOldReq
+     | tailRes
+
+-- old parameter not required → failure
+... | false | inl tail =
+  inl (λ {ℓ} {k} {p} lk req →
+        tail (lookupParam-strip {ℓ} {k} {p} hReq lk req) req)
+
+
+... | false | inr tailFail =
+  inr (liftNewRequiredFailure tailFail)
+
+-- tail fails
+... | true | inr tailFail =
+  inr (liftNewRequiredFailure tailFail)
+
+-- everything safe
+... | true | inl tail =
+  inl dispatch
+  where
+    dispatch : NewRequiredSafe old (h :: rest)
+    dispatch {ℓ} {k} {p} lk req
+      with ParamLocation≟ ℓ (Parameter.location h)
+    ... | no _ = tail lk req
+
+    ... | yes refl
+      with k ≟ Parameter.name h
+    ... | no _ = tail lk req
+
+    ... | yes refl =
+      pOld , (lkOldH , pOldReq)
+
+
+```agda
+
+NewRequiredSafe? : (old new : List Parameter) → Unique (paramKeys new) → Dec (NewRequiredSafe old new)
+NewRequiredSafe? old [] _ = yes (λ ())
+NewRequiredSafe? old (h :: rest)
+  (uniq::_ h∉rest uniqRest)
+  with Parameter.required h in hReq
+  | lookupParam (Parameter.location h) (Parameter.name h) old in lkOldH
+  | NewRequiredSafe? old rest uniqRest
+  
+... | false | _ | yes tail = yes (λ {ℓ} {k} {p} lk req →
+    tail {ℓ} {k} {p} (strip lk req) req)
+  where
+    strip : ∀ {ℓ k p}
+          → lookupParam ℓ k (h :: rest) ≡ just p
+          → Parameter.required p ≡ true
+          → lookupParam ℓ k rest ≡ just p
+    strip {ℓ} {k} {p} lk req
+      with ParamLocation≟ ℓ (Parameter.location h)
+    ... | no  _    = lk
+    ... | yes refl
+      with k ≟ Parameter.name h
+    ... | no  _    = lk
+    ... | yes refl =
+            ⊥-elim (false≢true (trans (sym hReq)
+                                  (subst (λ x → Parameter.required x ≡ true)
+                                    (sym (just-inj lk)) req)))
+
+... | false | _ | no ¬tail =
+    no λ safe → ¬tail λ {ℓ} {k} {p} lk req → safe (lift lk) req
+  where
+    lift : ∀ {ℓ k p}
+         → lookupParam ℓ k rest ≡ just p
+         → lookupParam ℓ k (h :: rest) ≡ just p
+    lift {ℓ} {k} lk
+      with ParamLocation≟ ℓ (Parameter.location h)
+    ... | no  _    = lk
+    ... | yes refl with k ≟ Parameter.name h
+    ... | no  _    = lk
+    ... | yes refl = ⊥-elim (∉-elim h∉rest (lookupParam→∈ lk))
+
+... | true | nothing | _ =
+    no λ safe →
+      let (pOld , (lkOld , _)) = safe {Parameter.location h} {Parameter.name h} {h} lookupParam-here hReq
+      in just≢nothing (trans (sym lkOld) lkOldH)
+
+... | true | just pOld | tailDec
+    with Parameter.required pOld in pOldReq
+    | tailDec
+
+... | false | _ =
+      no λ safe →
+        let (pOld' , (lkOld' , reqOld')) = safe {Parameter.location h} {Parameter.name h} {h} lookupParam-here hReq
+            pOld≡pOld' = just-inj (trans (sym lkOld') lkOldH)
+        in false≢true (trans (sym pOldReq) (trans (cong Parameter.required (sym pOld≡pOld')) reqOld'))
+
+... | true | no ¬tail =
+      no λ safe → ¬tail λ {ℓ} {k} {p} lk req → safe (lift lk) req
+  where
+    lift : ∀ {ℓ k p}
+         → lookupParam ℓ k rest ≡ just p
+         → lookupParam ℓ k (h :: rest) ≡ just p
+    lift {ℓ} {k} lk
+      with ParamLocation≟ ℓ (Parameter.location h)
+    ... | no  _    = lk
+    ... | yes refl with k ≟ Parameter.name h
+    ... | no  _    = lk
+    ... | yes refl = ⊥-elim (∉-elim h∉rest (lookupParam→∈ lk))
+
+... | true | yes tail = yes dispatch
+  where
+    dispatch : NewRequiredSafe old (h :: rest)
+    dispatch {ℓ} {k} {p} lk req
+      with ParamLocation≟ ℓ (Parameter.location h)
+    ... | no  _    = tail lk req
+    ... | yes refl with k ≟ Parameter.name h
+    ... | no  _    = tail lk req
+    ... | yes refl = pOld , (lkOldH , pOldReq)
+
+extractFailure :
+  ∀ old new
+  → Unique (paramKeys new)
+  → (NewRequiredSafe old new → ⊥)
+  → NewRequiredFailure old new
+
+extractFailure old [] uniq ¬safe =
+  ⊥-elim (¬safe (λ ()))
+
+extractFailure old (h :: rest) (uniq::_ h∉rest uniqRest) ¬safe
+  with Parameter.required h
+     | lookupParam (Parameter.location h) (Parameter.name h) old
+
+-- optional parameter → cannot violate the rule
+... | false | _ =
+      liftNewRequiredFailure
+        (extractFailure old rest uniqRest
+          (λ safe →
+             ¬safe
+               (λ {ℓ} {k} {p} lk req →
+                  safe
+                    {!!}
+                    req)))
+                    
+-- required parameter missing in old → real failure
+... | true | nothing =
+      NewRequiredParam
+        (Parameter.location h)
+        (Parameter.name h)
+        h
+        {!!}
+        lookupParam-here
+        {!!}
+
+-- required parameter exists in old
+... | true | just pOld
+  with Parameter.required pOld
+
+-- already required in old → recurse
+... | true = {!!}
+
+-- optional in old → strengthening (handled by OldParamsPreserved)
+... | false = {!!}
+
+NewRequiredSafe∔ :
+  (old new : List Parameter)
+  → Unique (paramKeys new)
+  → NewRequiredSafe old new ∔ NewRequiredFailure old new
+```
+
+---
+
+
+still not fniished w above
+
+
+---
+
+### 2.2 Decidable Body Refinement
+
+```agda
+data BodyDrift : ∀ {m} → Body m → Body m → Set where
+
+  BodySchemaDrift :
+      ∀ {s₀ s₁}
+      → SchemaDrift s₁ s₀
+      → BodyDrift (HasBody s₀) (HasBody s₁)
+
+  BodySchemaUDrift :
+      ∀ {s₀ s₁}
+      → SchemaDrift s₁ s₀
+      → BodyDrift (HasBodyU s₀) (HasBodyU s₁)
+
+  BodySchemaPDrift :
+      ∀ {s₀ s₁}
+      → SchemaDrift s₁ s₀
+      → BodyDrift (HasBodyP s₀) (HasBodyP s₁)
+```
+
+```agda
+Body⊑Contra? : ∀ {m} → (b₀ b₁ : Body m) → WFBody b₀ → WFBody b₁ → Body⊑Contra (refl) b₀ b₁ ∔ BodyDrift b₀ b₁
+
+Body⊑Contra? NoBody  NoBody  _ _ = inl tt
+
+Body⊑Contra? NoBodyD NoBodyD _ _ = inl tt
+
+Body⊑Contra? (HasBody s) (HasBody t) (wf-hasBody ws) (wf-hasBody wt)
+  with Schema⊑Co? wt ws
+... | inl ok    = inl ok
+... | inr drift = inr (BodySchemaDrift drift)
+
+Body⊑Contra? (HasBodyU s) (HasBodyU t) (wf-hasBodyU ws) (wf-hasBodyU wt)
+  with Schema⊑Co? wt ws
+... | inl ok    =  inl ok
+... | inr drift = inr (BodySchemaUDrift drift)
+
+Body⊑Contra? (HasBodyP s) (HasBodyP t) (wf-hasBodyP ws) (wf-hasBodyP wt)
+  with Schema⊑Co? wt ws
+... | inl ok    = inl ok
+... | inr drift = inr (BodySchemaPDrift drift)
+```
+
+---
 
