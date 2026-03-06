@@ -285,19 +285,6 @@ data ParamFailure (old new : List Parameter) : Set where
 ```
 
 ```agda
-paramFailure→EndpointDrift :
-    ∀ {e₀ e₁}
-  → ParamFailure (Endpoint.parameters e₀) (Endpoint.parameters e₁)
-  → EndpointDrift e₀ e₁
-paramFailure→EndpointDrift (ParamRemoved ℓ k notNoth missing) =
-  ParameterRemoved notNoth missing
-paramFailure→EndpointDrift (ParamSchemaChanged p₀ p₁ loc≡ name≡ lk₀ lk₁ sch≢) =
-  ParameterSchemaChanged loc≡ name≡ lk₀ lk₁ sch≢
-paramFailure→EndpointDrift (RequiredParamAdded p₀ p₁ loc≡ name≡ lk₀ lk₁ req₀ req₁) =
-  RequiredParameterAdded loc≡ name≡ lk₀ lk₁ req₀ req₁
-```
-
-```agda
 liftParamFailure :
     ∀ {p ps new}
   → (Parameter.location p , Parameter.name p) ∉ paramKeys ps
@@ -450,7 +437,6 @@ liftNewRequiredFailure :
 liftNewRequiredFailure (NewRequiredParam ℓ k p lkOld lkNew req) =
   NewRequiredParam ℓ k p lkOld (lookupParam-there {!!} lkNew) req
 ```
-
 
 ### Decision
 
@@ -674,6 +660,18 @@ NewRequiredSafe∔ :
 still not fniished w above
 
 
+
+---
+
+```agda
+Params⊑Contra? :
+  (old new : List Parameter)
+  → Unique (paramKeys new)
+  → Params⊑Contra old new ∔ ParamFailure old new
+Params⊑Contra? old new uniq = {!!}
+
+```
+
 ---
 
 ### 2.2 Decidable Body Refinement
@@ -813,3 +811,82 @@ Resps⊑Co? (response st s :: rs) new
 ---
 
 ### 2.4 Decidable Endpoint Refinement
+
+With all component checks in place, endpoint refinement is decided by running each check in sequence and converting any failure into an `EndpointDrift` witness. The helpers below extract well-formedness invariants from `WFEndpoint` and bridge the local failure types to `EndpointDrift`.
+
+
+### Helpers
+
+```agda
+wfEndpoint-paramUniq : ∀ {e} → WFEndpoint e → Unique (paramKeys (Endpoint.parameters e))
+wfEndpoint-paramUniq (wf-endpoint _ _ uniq _ _ _) = uniq
+
+wfEndpoint-respUniq : ∀ {e} → WFEndpoint e → Unique (respKeys (Endpoint.responses e))
+wfEndpoint-respUniq (wf-endpoint _ _ _ _ _ uniq) = uniq
+
+wfEndpoint-body : ∀ {e} → WFEndpoint e → WFBody (Endpoint.body e)
+wfEndpoint-body (wf-endpoint _ _ _ body _ _) = body
+
+wfEndpoint-resps : ∀ {e} → WFEndpoint e → All WFResponse (Endpoint.responses e)
+wfEndpoint-resps (wf-endpoint _ _ _ _ resps _) = resps
+```
+
+```agda
+paramFailure→EndpointDrift :
+    ∀ {e₀ e₁}
+  → ParamFailure (Endpoint.parameters e₀) (Endpoint.parameters e₁)
+  → EndpointDrift e₀ e₁
+paramFailure→EndpointDrift (ParamRemoved ℓ k notNoth missing) =
+  ParameterRemoved notNoth missing
+paramFailure→EndpointDrift (ParamSchemaChanged p₀ p₁ loc≡ name≡ lk₀ lk₁ sch≢) =
+  ParameterSchemaChanged loc≡ name≡ lk₀ lk₁ sch≢
+paramFailure→EndpointDrift (RequiredParamAdded p₀ p₁ loc≡ name≡ lk₀ lk₁ req₀ req₁) =
+  RequiredParameterAdded loc≡ name≡ lk₀ lk₁ req₀ req₁
+```
+
+```agda
+bodyDrift→EndpointDrift :
+    ∀ {e₀ e₁}
+  → (method≡ : Endpoint.method e₀ ≡ Endpoint.method e₁)
+  → BodyDrift (Endpoint.body e₀) (subst Body (sym method≡) (Endpoint.body e₁))
+  → EndpointDrift e₀ e₁
+bodyDrift→EndpointDrift refl (BodySchemaDrift  d) = BodySchemaDrift body-post  body-post  d
+bodyDrift→EndpointDrift refl (BodySchemaUDrift d) = BodySchemaDrift body-put   body-put   d
+bodyDrift→EndpointDrift refl (BodySchemaPDrift d) = BodySchemaDrift body-patch body-patch d
+```
+
+```agda
+respFailure→EndpointDrift :
+    ∀ {e₀ e₁}
+  → RespFailure (Endpoint.responses e₀) (Endpoint.responses e₁)
+  → EndpointDrift e₀ e₁
+respFailure→EndpointDrift (RespRemoved st notNoth missing) =
+  ResponseRemoved notNoth missing
+respFailure→EndpointDrift (RespDrift st s t lkOld lkNew d) =
+  ResponseDrift lkOld lkNew d
+```
+
+### Decision
+
+```agda
+Endpoint⊑? : (e₀ e₁ : Endpoint) → WFEndpoint e₀ → WFEndpoint e₁ → Endpoint⊑ e₀ e₁ ∔ EndpointDrift e₀ e₁
+Endpoint⊑? e₀ e₁ wf₀ wf₁
+  with Path≟ (Endpoint.route e₀) (Endpoint.route e₁)
+... | no  route≢ = inr (RouteChanged route≢)
+... | yes route≡
+  with Method≟ (Endpoint.method e₀) (Endpoint.method e₁)
+... | no  method≢ = inr (MethodChanged method≢)
+... | yes refl
+  with Params⊑Contra? (Endpoint.parameters e₀) (Endpoint.parameters e₁) (wfEndpoint-paramUniq wf₁)
+... | inr paramF = inr (paramFailure→EndpointDrift paramF)
+... | inl params
+  with Body⊑Contra? (Endpoint.body e₀) (Endpoint.body e₁) (wfEndpoint-body wf₀) (wfEndpoint-body wf₁)
+... | inr bodyD = inr (bodyDrift→EndpointDrift refl bodyD)
+... | inl body
+  with Resps⊑Co? (Endpoint.responses e₀) (Endpoint.responses e₁) (wfEndpoint-respUniq wf₀) (wfEndpoint-resps wf₀) (wfEndpoint-resps wf₁)
+... | inr respF = inr (respFailure→EndpointDrift respF)
+... | inl resps = inl (⊑-endpoint wf₀ wf₁ route≡ refl params body resps)
+```
+
+---
+
