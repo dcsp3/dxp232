@@ -234,6 +234,18 @@ lookupResp-there {st} {st₀} {s₀} {rs} {t} st₀≢st ih
 ... | no  _      = ih
 ```
 
+```agda
+lookupResp→∈ :
+  ∀ {st s rs}
+  → lookupResp st rs ≡ just s
+  → st ∈ respKeys rs
+lookupResp→∈ {st} {rs = response st' s :: rs} lk
+  with Status≟ st st'
+... | yes refl = here
+... | no  _    = there (lookupResp→∈ lk)
+lookupResp→∈ {rs = []} ()
+```
+
 Endpoint refinement will be defined by matching components via lookup, then applying the relevant variance-aware schema check, similar to schema refinement.
 
 ---
