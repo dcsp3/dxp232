@@ -174,6 +174,28 @@ lookupEndpoint-there {h} {r} {m} {es} {e} head≢ ih
 
 ---
 
+### 2.3 Successful lookup implies key membership
+
+If lookup succeeds, the `(route, method)` pair must appear in the endpoint key list.
+
+```agda
+lookupEndpoint→∈ :
+  ∀ {r m e es}
+  → lookupEndpoint r m es ≡ just e
+  → (r , m) ∈ endpointKeys es
+  
+lookupEndpoint→∈ {r} {m} {es = e :: es} lk
+  with Path≟ r (Endpoint.route e)
+... | no  _    = there (lookupEndpoint→∈ lk)
+... | yes refl
+  with Method≟ m (Endpoint.method e)
+... | no  _    = there (lookupEndpoint→∈ lk)
+... | yes refl = here
+lookupEndpoint→∈ {es = []} ()
+```
+
+---
+
 ## 3. Component Refinement
 
 Components are aligned by name.

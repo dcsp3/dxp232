@@ -874,15 +874,19 @@ Endpoint⊑? e₀ e₁ wf₀ wf₁
   with Path≟ (Endpoint.route e₀) (Endpoint.route e₁)
 ... | no  route≢ = inr (RouteChanged route≢)
 ... | yes route≡
+
   with Method≟ (Endpoint.method e₀) (Endpoint.method e₁)
 ... | no  method≢ = inr (MethodChanged method≢)
 ... | yes refl
+
   with Params⊑Contra? (Endpoint.parameters e₀) (Endpoint.parameters e₁) (wfEndpoint-paramUniq wf₁)
 ... | inr paramF = inr (paramFailure→EndpointDrift paramF)
 ... | inl params
+
   with Body⊑Contra? (Endpoint.body e₀) (Endpoint.body e₁) (wfEndpoint-body wf₀) (wfEndpoint-body wf₁)
 ... | inr bodyD = inr (bodyDrift→EndpointDrift refl bodyD)
 ... | inl body
+
   with Resps⊑Co? (Endpoint.responses e₀) (Endpoint.responses e₁) (wfEndpoint-respUniq wf₀) (wfEndpoint-resps wf₀) (wfEndpoint-resps wf₁)
 ... | inr respF = inr (respFailure→EndpointDrift respF)
 ... | inl resps = inl (⊑-endpoint wf₀ wf₁ route≡ refl params body resps)
@@ -900,11 +904,13 @@ We now lift refinement decidability to whole APIs. Since endpoint and schema ref
 
 ```agda
 data ComponentFailure (old new : List (String × Schema)) : Set where
+
   ComponentRemoved' :
       (k : String)
     → lookupComponent k old ≢ nothing
     → lookupComponent k new ≡ nothing
     → ComponentFailure old new
+    
   ComponentDrift' :
       (k : String) (s t : Schema)
     → lookupComponent k old ≡ just s
@@ -946,7 +952,9 @@ lookupComponent-wf :
   → All WFSchema (values cs)
   → lookupComponent k cs ≡ just s
   → WFSchema s
+  
 lookupComponent-wf {k} {cs = []} _ ()
+
 lookupComponent-wf {k} {cs = (k' , s') :: cs} (all::_ wfS rest) lk
   with k ≟ k'
 ... | yes refl = subst WFSchema (just-inj lk) wfS
@@ -964,6 +972,7 @@ Components⊑? :
   → Components⊑ old new ∔ ComponentFailure old new
   
 Components⊑? [] new _ _ _ = inl tt
+
 Components⊑? ((k , s) :: cs) new (uniq::_ k∉ uniqRest) (all::_ wfS wfRest) wfNew
   with lookupComponent k new in lkeq
 ... | nothing =
@@ -976,6 +985,101 @@ Components⊑? ((k , s) :: cs) new (uniq::_ k∉ uniqRest) (all::_ wfS wfRest) w
 ... | inr d  | _        = inr (ComponentDrift' k s t lookupComponent-here lkeq d)
 ... | inl _  | inr fail = inr (liftComponentFailure k∉ fail)
 ... | inl ok | inl rest = inl ((t , (refl , ok)) , rest)
+```
+
+---
+
+### 3.2 Decidable Endpoint List Refinement 
+
+### Helpers
+
+```agda
+data EndpointFailure (old new : List Endpoint) : Set where
+
+  EndpointRemoved' :
+      (r : Path) (m : Method)
+    → lookupEndpoint r m old ≢ nothing
+    → lookupEndpoint r m new ≡ nothing
+    → EndpointFailure old new
+    
+  EndpointDrift' :
+      (r : Path) (m : Method) (e₀ e₁ : Endpoint)
+    → lookupEndpoint r m old ≡ just e₀
+    → lookupEndpoint r m new ≡ just e₁
+    → EndpointDrift e₀ e₁
+    → EndpointFailure old new
+```
+
+```agda
+lookupEndpoint-wf :
+  ∀ {r m e es}
+  → All WFEndpoint es
+  → lookupEndpoint r m es ≡ just e
+  → WFEndpoint e
+lookupEndpoint-wf {r} {m} {es = e :: es} (all::_ wfE wfRest) lk
+  with Path≟ r (Endpoint.route e)
+... | no  _    = lookupEndpoint-wf wfRest lk
+... | yes refl
+  with Method≟ m (Endpoint.method e)
+... | no  _    = lookupEndpoint-wf wfRest lk
+... | yes refl = subst WFEndpoint (just-inj lk) wfE
+lookupEndpoint-wf {es = []} all[] ()
+```
+
+```agda
+liftEndpointFailure :
+    ∀ {h es new}
+  → (Endpoint.route h , Endpoint.method h) ∉ endpointKeys es
+  → EndpointFailure es new
+  → EndpointFailure (h :: es) new
+  
+liftEndpointFailure {h} {es} {new} h∉ (EndpointRemoved' r m notNoth missing) =
+  EndpointRemoved' r m
+    (λ contra → notNoth (strip contra))
+    missing
+  where
+    strip : lookupEndpoint r m (h :: es) ≡ nothing
+          → lookupEndpoint r m es ≡ nothing
+    strip contra
+      with Path≟ r (Endpoint.route h)
+    ... | no  _    = contra
+    ... | yes refl
+      with Method≟ m (Endpoint.method h)
+    ... | no  _    = contra
+    ... | yes refl = ⊥-elim (just≢nothing contra)
+    
+liftEndpointFailure h∉ (EndpointDrift' r m e₀ e₁ lkOld lkNew d) =
+  EndpointDrift' r m e₀ e₁
+    (lookupEndpoint-there
+      (λ eq → ∉-elim h∉ (subst (_∈ endpointKeys _) (sym eq) (lookupEndpoint→∈ lkOld)))
+      lkOld)
+    lkNew
+    d
+```
+
+### Decision
+
+```agda
+Endpoints⊑? :
+    (old new : List Endpoint)
+  → Unique (endpointKeys old)
+  → All WFEndpoint old
+  → All WFEndpoint new
+  → Endpoints⊑ old new ∔ EndpointFailure old new
+Endpoints⊑? [] new _ _ _ = inl tt
+Endpoints⊑? (e :: es) new (uniq::_ e∉ uniqRest) (all::_ wfE wfRest) wfNew
+  with lookupEndpoint (Endpoint.route e) (Endpoint.method e) new in lkeq
+... | nothing =
+      inr (EndpointRemoved'
+            (Endpoint.route e) (Endpoint.method e)
+            (λ contra → just≢nothing (trans (sym (lookupEndpoint-here {e})) contra))
+            lkeq)
+... | just e'
+  with Endpoint⊑? e e' wfE (lookupEndpoint-wf wfNew lkeq)
+  | Endpoints⊑? es new uniqRest wfRest wfNew
+... | inr d  | _        = inr (EndpointDrift' _ _ e e' lookupEndpoint-here lkeq d)
+... | inl _  | inr fail = inr (liftEndpointFailure e∉ fail)
+... | inl ok | inl rest = inl ((e' , (refl , ok)) , rest)
 ```
 
 ---
