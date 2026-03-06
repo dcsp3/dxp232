@@ -890,3 +890,93 @@ Endpoint⊑? e₀ e₁ wf₀ wf₁
 
 ---
 
+## 3. Decidability of API Refinement
+
+We now lift refinement decidability to whole APIs. Since endpoint and schema refinement are already decidable, API refinement reduces to aligning components and endpoints via lookup and running recursive checks on matched entries. Failures are packaged into `APIDrift` witnesses that identify exactly what was removed or what changed inside a matched entry. As before, well-formedness guarantees uniqueness of keys so alignment is unambiguous.
+
+### 3.1 Decidable Componenent Refinement 
+
+### Helpers
+
+```agda
+data ComponentFailure (old new : List (String × Schema)) : Set where
+  ComponentRemoved' :
+      (k : String)
+    → lookupComponent k old ≢ nothing
+    → lookupComponent k new ≡ nothing
+    → ComponentFailure old new
+  ComponentDrift' :
+      (k : String) (s t : Schema)
+    → lookupComponent k old ≡ just s
+    → lookupComponent k new ≡ just t
+    → SchemaDrift s t
+    → ComponentFailure old new
+```
+
+```agda
+liftComponentFailure :
+    ∀ {k₀ s₀ cs new}
+  → k₀ ∉ keys cs
+  → ComponentFailure cs new
+  → ComponentFailure ((k₀ , s₀) :: cs) new
+  
+liftComponentFailure {k₀} {s₀} {cs} k₀∉ (ComponentRemoved' k notNoth missing) =
+  ComponentRemoved' k
+    (λ contra → notNoth (strip contra))
+    missing
+  where
+    strip : lookupComponent k ((k₀ , s₀) :: cs) ≡ nothing
+          → lookupComponent k cs ≡ nothing
+    strip contra with k ≟ k₀
+    ... | yes refl = ⊥-elim (just≢nothing contra)
+    ... | no  _    = contra
+    
+liftComponentFailure k₀∉ (ComponentDrift' k s t lkOld lkNew d) =
+  ComponentDrift' k s t
+    (lookupComponent-there
+      (λ eq → ∉-elim k₀∉ (subst (_∈ keys _) (sym eq) (lookupComponent→∈ lkOld)))
+      lkOld)
+    lkNew
+    d
+```
+
+```agda
+lookupComponent-wf :
+  ∀ {k s cs}
+  → All WFSchema (values cs)
+  → lookupComponent k cs ≡ just s
+  → WFSchema s
+lookupComponent-wf {k} {cs = []} _ ()
+lookupComponent-wf {k} {cs = (k' , s') :: cs} (all::_ wfS rest) lk
+  with k ≟ k'
+... | yes refl = subst WFSchema (just-inj lk) wfS
+... | no  _    = lookupComponent-wf rest lk
+```
+
+### Decision
+
+```agda
+Components⊑? :
+    (old new : List (String × Schema))
+  → Unique (keys old)
+  → All WFSchema (values old)
+  → All WFSchema (values new)
+  → Components⊑ old new ∔ ComponentFailure old new
+  
+Components⊑? [] new _ _ _ = inl tt
+Components⊑? ((k , s) :: cs) new (uniq::_ k∉ uniqRest) (all::_ wfS wfRest) wfNew
+  with lookupComponent k new in lkeq
+... | nothing =
+      inr (ComponentRemoved' k
+            (λ contra → just≢nothing (trans (sym lookupComponent-here) contra))
+            lkeq)
+... | just t
+  with Schema⊑Co? wfS (lookupComponent-wf wfNew lkeq)
+  | Components⊑? cs new uniqRest wfRest wfNew
+... | inr d  | _        = inr (ComponentDrift' k s t lookupComponent-here lkeq d)
+... | inl _  | inr fail = inr (liftComponentFailure k∉ fail)
+... | inl ok | inl rest = inl ((t , (refl , ok)) , rest)
+```
+
+---
+
