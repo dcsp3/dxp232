@@ -440,7 +440,6 @@ data NewRequiredFailure (old new : List Parameter) : Set where
     → NewRequiredFailure old new
 
 ```
----
 
 ```agda
 liftNewRequiredFailure :
@@ -723,3 +722,94 @@ Body⊑Contra? (HasBodyP s) (HasBodyP t) (wf-hasBodyP ws) (wf-hasBodyP wt)
 
 ---
 
+### 2.3 Decidable Response Refinement
+
+### Helpers
+
+```agda
+data RespFailure (old new : List Response) : Set where
+  RespRemoved :
+      (st : Status)
+    → lookupResp st old ≢ nothing
+    → lookupResp st new ≡ nothing
+    → RespFailure old new
+
+  RespDrift :
+      (st : Status) (s t : Schema)
+    → lookupResp st old ≡ just s
+    → lookupResp st new ≡ just t
+    → SchemaDrift s t
+    → RespFailure old new
+```
+
+```agda
+lookupResp-wf :
+    ∀ {st t} {rs : List Response}
+  → All WFResponse rs
+  → lookupResp st rs ≡ just t
+  → WFSchema t
+lookupResp-wf {st} {rs = response st' s :: rs} (all::_ (wf-response wfS) rest) lk
+  with Status≟ st st'
+... | no  _    = lookupResp-wf rest lk
+... | yes refl = subst WFSchema (just-inj lk) wfS
+lookupResp-wf {rs = []} all[] ()
+```
+
+```agda
+liftRespFailure :
+    ∀ {st₀ s₀ rs new}
+  → st₀ ∉ respKeys rs
+  → RespFailure rs new
+  → RespFailure (response st₀ s₀ :: rs) new
+
+liftRespFailure {st₀} {s₀} {rs} st₀∉ (RespRemoved st notNoth missing) =
+  RespRemoved st notNoth' missing
+  where
+    notNoth' : lookupResp st (response st₀ s₀ :: rs) ≢ nothing
+    notNoth' contra
+      with Status≟ st st₀
+    ... | yes refl = just≢nothing contra
+    ... | no  _    = notNoth contra
+
+liftRespFailure {st₀} {rs = rs} st₀∉ (RespDrift st s t lkOld lkNew d) =
+  RespDrift st s t
+    (lookupResp-there
+      (λ eq → ∉-elim st₀∉ (subst (_∈ respKeys rs) (sym eq) (lookupResp→∈ lkOld)))
+      lkOld)
+    lkNew
+    d
+```
+
+### Decision
+
+```agda
+Resps⊑Co? :
+    (old new : List Response)
+  → Unique (respKeys old)
+  → All WFResponse old
+  → All WFResponse new
+  → Resps⊑Co old new ∔ RespFailure old new
+  
+Resps⊑Co? [] new _ _ _ = inl tt
+
+Resps⊑Co? (response st s :: rs) new
+  (uniq::_ st∉ uniqRest)
+  (all::_ (wf-response wfS) wfRs)
+  wfNew
+  with lookupResp st new in lkeq
+... | nothing =
+      inr (RespRemoved st
+            (λ contra → just≢nothing (trans (sym (lookupResp-here {st})) contra))
+            lkeq)
+... | just t
+  with Schema⊑Co? wfS (lookupResp-wf wfNew lkeq)
+  | Resps⊑Co? rs new uniqRest wfRs wfNew
+... | inr d    | _         = inr (RespDrift st s t (lookupResp-here {st}) lkeq d)
+... | inl _    | inr tailF = inr (liftRespFailure st∉ tailF)
+... | inl ok   | inl tail  = inl ((t , (refl , ok)) , tail)
+```
+
+
+---
+
+### 2.4 Decidable Endpoint Refinement
