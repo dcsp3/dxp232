@@ -1084,3 +1084,57 @@ Endpoints⊑? (e :: es) new (uniq::_ e∉ uniqRest) (all::_ wfE wfRest) wfNew
 
 ---
 
+### 3.3 Decidable API Refinement
+
+
+With component and endpoint refinement both decidable, API refinement follows by running each check in sequence. Failures are converted to `Drift` witnesses via the helpers below.
+
+
+### Helpers
+
+```agda
+wfAPI-components : ∀ {a} → WFAPI a → All WFSchema (values (API.components a))
+wfAPI-components (wf-api wfComps _ _ _) = wfComps
+
+wfAPI-componentUniq : ∀ {a} → WFAPI a → Unique (keys (API.components a))
+wfAPI-componentUniq (wf-api _ uniq _ _) = uniq
+
+wfAPI-paths : ∀ {a} → WFAPI a → All WFEndpoint (API.paths a)
+wfAPI-paths (wf-api _ _ wfPaths _) = wfPaths
+
+wfAPI-pathUniq : ∀ {a} → WFAPI a → Unique (endpointKeys (API.paths a))
+wfAPI-pathUniq (wf-api _ _ _ uniq) = uniq
+```
+
+```agda
+componentFailure→Drift : ∀ {a₀ a₁} → ComponentFailure (API.components a₀) (API.components a₁) → Drift a₀ a₁
+componentFailure→Drift (ComponentRemoved' k notNoth missing) = ComponentRemoved notNoth missing
+componentFailure→Drift (ComponentDrift' k s t lkOld lkNew d) = ComponentDriftWitness lkOld lkNew d
+```
+
+```agda
+endpointFailure→Drift : ∀ {a₀ a₁} → EndpointFailure (API.paths a₀) (API.paths a₁) → Drift a₀ a₁
+endpointFailure→Drift (EndpointRemoved' r m notNoth missing) = EndpointRemoved notNoth missing
+endpointFailure→Drift (EndpointDrift' r m e₀ e₁ lkOld lkNew d) = EndpointDriftWitness lkOld lkNew d
+```
+
+### Decision
+
+```agda
+API⊑? : (a₀ a₁ : API) → WFAPI a₀ → WFAPI a₁ → API⊑ a₀ a₁ ∔ Drift a₀ a₁
+API⊑? a₀ a₁ wf₀ wf₁
+  with Components⊑?
+         (API.components a₀) (API.components a₁)
+         (wfAPI-componentUniq wf₀)
+         (wfAPI-components wf₀)
+         (wfAPI-components wf₁)
+... | inr fail = inr (componentFailure→Drift fail)
+... | inl comps
+  with Endpoints⊑?
+         (API.paths a₀) (API.paths a₁)
+         (wfAPI-pathUniq wf₀)
+         (wfAPI-paths wf₀)
+         (wfAPI-paths wf₁)
+... | inr fail = inr (endpointFailure→Drift fail)
+... | inl eps  = inl (⊑-api wf₀ wf₁ comps eps)
+```
