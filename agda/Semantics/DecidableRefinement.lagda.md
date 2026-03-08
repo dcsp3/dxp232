@@ -30,7 +30,7 @@ open import Semantics.Drift
 open Σ using (fst ; snd)
 ```
 
-## 1. Decidability of Covariant Schema Refinement
+## 1. Decidable Schema Refinement
 
 We decide covariant schema refinement by structural recursion on schema shape. The procedure follows the constructors of `Schema⊑Co`. When refinement succeeds we return `inl` with a proof; when it fails we return `inr` with a `SchemaDrift` witness explaining the structural violation.
 
@@ -233,7 +233,7 @@ The procedure is total and structurally recursive on the schema shape. Each nega
 
 ---
 
-## 2. Decidability of Endpoint Refinement
+## 2. Decidable Endpoint Refinement
 
 Endpoint refinement decomposes into four independent checks:
 
@@ -894,11 +894,11 @@ Endpoint⊑? e₀ e₁ wf₀ wf₁
 
 ---
 
-## 3. Decidability of API Refinement
+## 3. A Decision Procedure for API Refinement
 
 We now lift refinement decidability to whole APIs. Since endpoint and schema refinement are already decidable, API refinement reduces to aligning components and endpoints via lookup and running recursive checks on matched entries. Failures are packaged into `APIDrift` witnesses that identify exactly what was removed or what changed inside a matched entry. As before, well-formedness guarantees uniqueness of keys so alignment is unambiguous.
 
-### 3.1 Decidable Componenent Refinement 
+### 3.1 Component Alignment
 
 ### Helpers
 
@@ -989,7 +989,7 @@ Components⊑? ((k , s) :: cs) new (uniq::_ k∉ uniqRest) (all::_ wfS wfRest) w
 
 ---
 
-### 3.2 Decidable Endpoint List Refinement 
+### 3.2 Endpoint Alignment
 
 ### Helpers
 
@@ -1084,7 +1084,7 @@ Endpoints⊑? (e :: es) new (uniq::_ e∉ uniqRest) (all::_ wfE wfRest) wfNew
 
 ---
 
-### 3.3 Decidable API Refinement
+### 3.3 API-Level Refinement Check
 
 
 With component and endpoint refinement both decidable, API refinement follows by running each check in sequence. Failures are converted to `Drift` witnesses via the helpers below.
@@ -1137,4 +1137,19 @@ API⊑? a₀ a₁ wf₀ wf₁
          (wfAPI-paths wf₁)
 ... | inr fail = inr (endpointFailure→Drift fail)
 ... | inl eps  = inl (⊑-api wf₀ wf₁ comps eps)
+```
+
+---
+
+## 4. Decidability of API Refinement
+
+The previous sections construct a decision procedure `API⊑?` that returns either a refinement proof or a structured `Drift` witness. We now combine this with `DriftSound` to recover a plain `Dec (API⊑ a₀ a₁)`.
+
+This is the main result of this module: refinement between well-formed APIs is decidable, and incompatibility always has a concrete structural explanation.
+```agda
+API⊑-decidable : ∀ (a₀ a₁ : API) → WFAPI a₀ → WFAPI a₁ → Dec (API⊑ a₀ a₁)
+API⊑-decidable a₀ a₁ wf₀ wf₁
+  with API⊑? a₀ a₁ wf₀ wf₁
+... | inl ok    = yes ok
+... | inr drift = no (DriftSound drift)
 ```
