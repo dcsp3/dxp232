@@ -1,10 +1,10 @@
 # Decidable Refinement
 
-Refinement and drift describe the same situation from opposite directions. Given two well-formed specifications, we can either build a proof that one safely refines the other, or point to a specific structural change that breaks compatibility.
+Given two well-formed specs, we either build a refinement proof or point to exactly what broke. Refinement and drift are two sides of the same coin.
 
-The construction works bottom-up. We start at the schema level, deciding refinement by structural recursion on shape and returning either a `Schema⊑Co` proof or a `SchemaDrift` witness. We then lift this to endpoints by checking parameters, request bodies, and responses. Finally, we lift again to APIs by aligning components and endpoints via lookup.
+We work bottom-up: decide schema refinement first, then lift to endpoints (checking parameters, bodies, responses), then lift again to full APIs (aligning components and endpoints via lookup). At each level, we return either a proof (`inl`) or a drift witness (`inr`) explaining the specific failure.
 
-All checks are constructive and run over finite structures. They depend only on decidable equality for identifiers and recursive calls on smaller pieces of the specification. Well-formedness plays a crucial role: it guarantees uniqueness of keys and ensures that every alignment step is deterministic and computable.
+Well-formedness is critical here: it guarantees unique keys, making all lookups deterministic.
 
 ```agda
 module Semantics.DecidableRefinement where
@@ -30,29 +30,28 @@ open import Semantics.Drift
 open Σ using (fst ; snd)
 ```
 
-## 1. Decidable Schema Refinement
+## 1. Schema Refinement
 
-We decide covariant schema refinement by structural recursion on schema shape. The procedure follows the constructors of `Schema⊑Co`. When refinement succeeds we return `inl` with a proof; when it fails we return `inr` with a `SchemaDrift` witness explaining the structural violation.
+Schemas refine covariantly. We recurse on shape: primitives check type equality, arrays recurse on item schemas, objects check properties and required-field subsets.
 
-### 1.1 Decidable Property Refinement
+### 1.1 Property Refinement
 
-The object case reduces to property alignment. For each property in the old schema, we check that it exists in the new schema and that its schema refines recursively. Failure is recorded as a `PropertyFailure`, which is later converted into a `SchemaDrift`.
-
-`PropsRefine?` and `Schema⊑Co?` are mutually recursive because object refinement requires recursive schema checks on property types.
+For objects, we walk the old properties and check that each one exists in the new schema with a covariant refinement. Failures get recorded as `PropertyFailure`, which we later convert to `SchemaDrift`.
 
 ### Helpers
 
 ```agda
+-- Property refinement can fail two ways:
 data PropertyFailure
   (ps qs : List (String × Schema)) : Set where
 
-  MissingProperty :
+  MissingProperty :  -- property was removed
       (k : String)
     → lookupProp k ps ≢ nothing
     → lookupProp k qs ≡ nothing
     → PropertyFailure ps qs
 
-  NestedDrift :
+  NestedDrift :  -- property's schema drifted
       (k : String)
       (si ti : Schema)
     → lookupProp k ps ≡ just si
@@ -91,7 +90,9 @@ propertyFailure→SchemaDrift tyS tyT
     PropertyDrift tyS tyT lkPs lkQt d
 ```
 
-### Decision Procedure
+### Decision
+
+These are mutually recursive: property refinement needs schema checks, and schema refinement needs property checks for the object case.
 
 ```agda
 mutual
@@ -133,21 +134,14 @@ mutual
         inl ((t , (refl , r)) , rest)
 ```
 
----
-
-### 1.2 Decidable Covariant Schema Refinement
-
 ```agda
   Schema⊑Co? :
     ∀ {s t}
     → WFSchema s
     → WFSchema t
     → Schema⊑Co s t ∔ SchemaDrift s t
-```
 
-### Primitives
-
-```agda
+  -- Primitives: check type equality
   Schema⊑Co? {s} {t}
     wfS@(wf-prim primS _ _ _)
     wfT@(wf-prim primT _ _ _)
@@ -157,11 +151,8 @@ mutual
 
   ... | no neq =
         inr (PrimitiveChanged primS primT neq)
-```
 
-### Arrays
-
-```agda
+  -- Arrays: recurse on item schema
   Schema⊑Co? {s} {t}
     wfS@(wf-array tyS itemsS wfItemS _ _)
     wfT@(wf-array tyT itemsT wfItemT _ _)
@@ -171,11 +162,8 @@ mutual
 
   ... | inr d =
         inr (ArrayItemDrift tyS tyT itemsS itemsT d)
-```
 
-### Objects
-
-```agda
+  -- Objects: property refinement + required field subset
   Schema⊑Co? {s} {t}
     wfS@(wf-object tyS _ wfPropsS wfReqS uniqS reqUniqS)
     wfT@(wf-object tyT _ wfPropsT wfReqT uniqT reqUniqT)
@@ -196,11 +184,8 @@ mutual
 
   ...   | yes sub =
           inl (⊑-object wfS wfT tyS tyT pr sub)
-```
 
-### Shape mismatches
-
-```agda
+  -- Shape mismatches: primitive ↔ array, primitive ↔ object, array ↔ object
   Schema⊑Co? (wf-prim primS _ _ _) (wf-array tyT _ _ _ _) =
     inr (ShapeMismatch (λ eq → prim≢array (subst IsPrimitive (trans eq tyT) primS)))
 
@@ -220,36 +205,21 @@ mutual
     inr (ShapeMismatch (λ eq → array≢object (trans (sym tyT) (trans (sym eq) tyS))))
 ```
 
-The procedure is total and structurally recursive on the schema shape. Each negative branch corresponds directly to one of the constructors of `SchemaDrift`, ensuring that failure always carries a structured explanation.
-
 ---
 
-## 2. Decidable Endpoint Refinement
+## 2. Endpoint Refinement
 
-Endpoint refinement decomposes into four independent checks:
+Endpoints decompose into four independent checks: parameters (contravariant), request body (contravariant), responses (covariant), and route/method identity. Each check either succeeds with a proof or fails with a specific `EndpointDrift` constructor.
 
-1. parameter contravariance,
-2. request body contravariance,
-3. response covariance, and
-4. route/method identity.
+### 2.1 Parameter Refinement
 
-Each check is decided separately and failures are packaged into the corresponding `EndpointDrift` constructor.
+Parameters are contravariant, so we run two checks:
+- `OldParamsPreserved?`: every old parameter must survive into the new list with the same schema and without weakening the required flag
+- `NewRequiredSafe?`: no brand-new required parameters (new optional parameters are fine, and upgrading optional→required is caught by the first check)
 
-
-### 2.1 Decidable Parameter Refinement
-
-Parameter contravariance splits into two independent checks, each scanning one of the two parameter lists:
-
-- `OldParamsPreserved?` walks the **old** list and verifies every parameter survived into the new list compatibly: same schema, and required flag not weakened.
-- `NewRequiredSafe?` walks the **new** list and ensures no brand-new required parameter has been added without already being present (optionally) in the old list.
-
-Each check produces either a success witness or a structured failure value. The two are then combined by `Params⊑Contra?` into the single `Params⊑Contra` judgement used by `Endpoint⊑?`.
-
----
+We then combine both witnesses via `Params⊑Contra?`.
 
 ### 2.1.1 `OldParamsPreserved?`
-
-`ParamFailure` records the three ways preservation can fail: the parameter was removed entirely, its schema changed, or it was strengthened from optional to required.
 
 ### Helpers
 
@@ -283,6 +253,7 @@ data ParamFailure (old new : List Parameter) : Set where
 ```
 
 ```agda
+-- Lift a tail failure to the full list
 liftParamFailure :
     ∀ {p ps new}
   → (Parameter.location p , Parameter.name p) ∉ paramKeys ps
@@ -327,11 +298,8 @@ liftParamFailure {p} {ps} p∉ (RequiredParamAdded p₀ p₁ loc≡ name≡ lk�
     req₁
 ```
 
-### Decision
-
-`OldParamsPreserved?` recurses on the old parameter list. At each step it looks up the current parameter in the new list and checks schema equality and required-flag direction. Positive branches recurse; negative branches immediately return the appropriate `ParamFailure` constructor.
-
 ```agda
+-- Walk old params, look up each in new, check schema + required direction
 OldParamsPreserved? :
   (old new : List Parameter)
   → Unique (paramKeys old)
@@ -390,38 +358,25 @@ OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
 
 -- safe cases → recurse
 
--- required stays false
-... | false | false
+-- new param is not required (old may be either)
+... | _ | false
   with OldParamsPreserved? ps new uniqTail
 ... | inl rest = inl ((q , (refl , (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (sym (lookupParam-name {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (refl , (λ req≡true → ⊥-elim (false≢true (trans (sym reqQ) req≡true)))))))) , rest)
-
-... | inr pf   = inr (liftParamFailure p∉tail pf)
-
-OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
-  | just q | yes refl | true | false
-  with OldParamsPreserved? ps new uniqTail
-... | inl rest = inl ((q , (refl , (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (sym (lookupParam-name {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (refl , (λ req≡true → ⊥-elim (false≢true (trans (sym reqQ) req≡true)))))))) , rest)
-
 ... | inr pf   = inr (liftParamFailure p∉tail pf)
 
 OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
   | just q | yes refl | true | true
   with OldParamsPreserved? ps new uniqTail
-... | inl rest = inl ((q , (refl , (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (sym (lookupParam-name {Parameter.location p} {Parameter.name p} {new} {q}  lkeq) , (refl , (λ _ → refl)))))) , rest)
+... | inl rest = inl ((q , (refl , (sym (lookupParam-location {Parameter.location p} {Parameter.name p} {new} {q} lkeq) , (sym (lookupParam-name {Parameter.location p} {Parameter.name p} {new} {q}  lkeq) , (refl , ( λ _ → refl)))))) , rest)
 ... | inr pf   = inr (liftParamFailure p∉tail pf)
 ```
 
----
-
 ### 2.1.2 `NewRequiredSafe?`
 
-`NewRequiredFailure` records the two ways the new-required check can fail: a brand-new required parameter with no counterpart in the old list, or a parameter that existed but was optional and has been upgraded to required.
-
-### Helpers
-
 ```agda
+-- Two ways new required parameters can break compatibility:
 data NewRequiredFailure (old new : List Parameter) : Set where
-  NewRequiredParam :
+  NewRequiredParam :  -- brand new required param
       (ℓ : ParamLocation) (k : String) (p : Parameter)
     → lookupParam ℓ k old ≡ nothing
     → lookupParam ℓ k new ≡ just p
@@ -438,6 +393,7 @@ data NewRequiredFailure (old new : List Parameter) : Set where
 ```
 
 ```agda
+-- Lift a tail failure to the full list
 liftNewRequiredFailure :
   ∀ {old rest h}
   → (Parameter.location h , Parameter.name h) ∉ paramKeys rest
@@ -460,9 +416,8 @@ liftNewRequiredFailure {h = h} h∉ (NewRequiredOptionalInOld ℓ k pOld p lkOld
     req
 ```
 
-### Decision
-
 ```agda
+-- Walk new params, verify required ones existed in old (or were optional there)
 NewRequiredSafe? : (old new : List Parameter) → Unique (paramKeys new) → Dec (NewRequiredSafe old new)
 NewRequiredSafe? old [] _ = yes (λ ())
 NewRequiredSafe? old (h :: rest)
@@ -490,17 +445,11 @@ NewRequiredSafe? old (h :: rest)
                                     (sym (just-inj lk)) req)))
 
 ... | false | _ | no ¬tail =
-    no λ safe → ¬tail λ {ℓ} {k} {p} lk req → safe (lift lk) req
-  where
-    lift : ∀ {ℓ k p}
-         → lookupParam ℓ k rest ≡ just p
-         → lookupParam ℓ k (h :: rest) ≡ just p
-    lift {ℓ} {k} lk
-      with ParamLocation≟ ℓ (Parameter.location h)
-    ... | no  _    = lk
-    ... | yes refl with k ≟ Parameter.name h
-    ... | no  _    = lk
-    ... | yes refl = ⊥-elim (∉-elim h∉rest (lookupParam→∈ lk))
+    no λ safe → ¬tail λ {ℓ} {k} {p} lk req →
+      safe (lookupParam-there
+              (λ eq → ∉-elim h∉rest (subst (_∈ paramKeys _) (sym eq) (lookupParam→∈ lk)))
+              lk)
+           req
 
 ... | true | nothing | _ =
     no λ safe →
@@ -518,17 +467,11 @@ NewRequiredSafe? old (h :: rest)
         in false≢true (trans (sym pOldReq) (trans (cong Parameter.required (sym pOld≡pOld')) reqOld'))
 
 ... | true | no ¬tail =
-      no λ safe → ¬tail λ {ℓ} {k} {p} lk req → safe (lift lk) req
-  where
-    lift : ∀ {ℓ k p}
-         → lookupParam ℓ k rest ≡ just p
-         → lookupParam ℓ k (h :: rest) ≡ just p
-    lift {ℓ} {k} lk
-      with ParamLocation≟ ℓ (Parameter.location h)
-    ... | no  _    = lk
-    ... | yes refl with k ≟ Parameter.name h
-    ... | no  _    = lk
-    ... | yes refl = ⊥-elim (∉-elim h∉rest (lookupParam→∈ lk))
+      no λ safe → ¬tail λ {ℓ} {k} {p} lk req →
+        safe (lookupParam-there
+                (λ eq → ∉-elim h∉rest (subst (_∈ paramKeys _) (sym eq) (lookupParam→∈ lk)))
+                lk)
+             req
 
 ... | true | yes tail = yes dispatch
   where
@@ -590,8 +533,8 @@ extractFailure old (h :: rest) (uniq::_ h∉rest uniqRest) ¬safe
         lkOldH lookupParam-here pOldReq hReq
 ```
 
-
 ```agda
+-- Convert Dec to sum type
 NewRequiredSafe∔ :
   (old new : List Parameter)
   → Unique (paramKeys new)
@@ -603,13 +546,10 @@ NewRequiredSafe∔ old new uniq
 ... | no ¬safe = inr (extractFailure old new uniq ¬safe)
 ```
 
----
-
 ### 2.1.3 Combining the Checks
 
-With both sub-checks decided, `Params⊑Contra?` runs them in sequence and pairs the two success witnesses into a `Params⊑Contra` proof, or returns whichever failure was found first.
-
 ```agda
+-- Run both sub-checks, pair their witnesses or return the first failure
 Params⊑Contra? :
   (old new : List Parameter)
   → Unique (paramKeys old)
@@ -623,9 +563,9 @@ Params⊑Contra? old new uniqOld uniqNew
 ... | inl old' | inl new' = inl (old' , new')
 ```
 
----
+### 2.2 Body Refinement
 
-### 2.2 Decidable Body Refinement
+Request bodies are contravariant in their schema. The check is straightforward: match constructors, recurse on schemas, or succeed trivially for `NoBody` cases.
 
 ```agda
 data BodyDrift : ∀ {m} → Body m → Body m → Set where
@@ -669,11 +609,9 @@ Body⊑Contra? (HasBodyP s) (HasBodyP t) (wf-hasBodyP ws) (wf-hasBodyP wt)
 ... | inr drift = inr (BodySchemaPDrift drift)
 ```
 
----
+### 2.3 Response Refinement
 
-### 2.3 Decidable Response Refinement
-
-### Helpers
+Responses are covariant: every response in the old spec must be preserved in the new spec with a covariant schema change. We walk the old list, look up each status code in the new list, and check schema refinement recursively.
 
 ```agda
 data RespFailure (old new : List Response) : Set where
@@ -692,6 +630,7 @@ data RespFailure (old new : List Response) : Set where
 ```
 
 ```agda
+-- Lift a tail failure to the full list
 liftRespFailure :
     ∀ {st₀ s₀ rs new}
   → st₀ ∉ respKeys rs
@@ -715,8 +654,6 @@ liftRespFailure {st₀} {rs = rs} st₀∉ (RespDrift st s t lkOld lkNew d) =
     lkNew
     d
 ```
-
-### Decision
 
 ```agda
 Resps⊑Co? :
@@ -745,17 +682,12 @@ Resps⊑Co? (response st s :: rs) new
 ... | inl ok   | inl tail  = inl ((t , (refl , ok)) , tail)
 ```
 
+### 2.4 Endpoint Refinement
 
----
-
-### 2.4 Decidable Endpoint Refinement
-
-With all component checks in place, endpoint refinement is decided by running each check in sequence and converting any failure into an `EndpointDrift` witness. The helpers below extract well-formedness invariants from `WFEndpoint` and bridge the local failure types to `EndpointDrift`.
-
-
-### Helpers
+With all component checks in place, we run them in sequence: check route/method identity first, then parameters, body, and responses. Any failure gets converted to the appropriate `EndpointDrift` constructor.
 
 ```agda
+-- Extract well-formedness facts from WFEndpoint
 wfEndpoint-paramUniq : ∀ {e} → WFEndpoint e → Unique (paramKeys (Endpoint.parameters e))
 wfEndpoint-paramUniq (wf-endpoint _ _ uniq _ _ _) = uniq
 
@@ -770,6 +702,7 @@ wfEndpoint-resps (wf-endpoint _ _ _ _ resps _) = resps
 ```
 
 ```agda
+-- Convert local failures to EndpointDrift
 paramFailure→EndpointDrift :
     ∀ {e₀ e₁}
     → ParamFailure (Endpoint.parameters e₀) (Endpoint.parameters e₁)
@@ -824,8 +757,6 @@ respFailure→EndpointDrift (RespDrift st s t lkOld lkNew d) =
   ResponseDrift lkOld lkNew d
 ```
 
-### Decision
-
 ```agda
 Endpoint⊑? : (e₀ e₁ : Endpoint) → WFEndpoint e₀ → WFEndpoint e₁ → Endpoint⊑ e₀ e₁ ∔ EndpointDrift e₀ e₁
 Endpoint⊑? e₀ e₁ wf₀ wf₁
@@ -853,13 +784,11 @@ Endpoint⊑? e₀ e₁ wf₀ wf₁
 
 ---
 
-## 3. A Decision Procedure for API Refinement
+## 3. API Refinement
 
-We now lift refinement decidability to whole APIs. Since endpoint and schema refinement are already decidable, API refinement reduces to aligning components and endpoints via lookup and running recursive checks on matched entries. Failures are packaged into `APIDrift` witnesses that identify exactly what was removed or what changed inside a matched entry. As before, well-formedness guarantees uniqueness of keys so alignment is unambiguous.
+We now lift refinement decidability to whole APIs. Since endpoint and schema refinement are already decidable, this reduces to aligning components and endpoints via lookup and running recursive checks on matched entries. Failures get packaged into `Drift` witnesses that point to exactly what was removed or what changed.
 
-### 3.1 Component Alignment
-
-### Helpers
+### 3.1 Components
 
 ```agda
 data ComponentFailure (old new : List (String × Schema)) : Set where
@@ -879,6 +808,7 @@ data ComponentFailure (old new : List (String × Schema)) : Set where
 ```
 
 ```agda
+-- Lift a tail failure to the full list
 liftComponentFailure :
     ∀ {k₀ s₀ cs new}
   → k₀ ∉ keys cs
@@ -906,6 +836,7 @@ liftComponentFailure k₀∉ (ComponentDrift' k s t lkOld lkNew d) =
 ```
 
 ```agda
+-- Extract well-formedness from a component lookup
 lookupComponent-wf :
   ∀ {k s cs}
   → All WFSchema (values cs)
@@ -919,8 +850,6 @@ lookupComponent-wf {k} {cs = (k' , s') :: cs} (all::_ wfS rest) lk
 ... | yes refl = subst WFSchema (just-inj lk) wfS
 ... | no  _    = lookupComponent-wf rest lk
 ```
-
-### Decision
 
 ```agda
 Components⊑? :
@@ -946,11 +875,7 @@ Components⊑? ((k , s) :: cs) new (uniq::_ k∉ uniqRest) (all::_ wfS wfRest) w
 ... | inl ok | inl rest = inl ((t , (refl , ok)) , rest)
 ```
 
----
-
-### 3.2 Endpoint Alignment
-
-### Helpers
+### 3.2 Endpoints
 
 ```agda
 data EndpointFailure (old new : List Endpoint) : Set where
@@ -970,6 +895,7 @@ data EndpointFailure (old new : List Endpoint) : Set where
 ```
 
 ```agda
+-- Extract well-formedness from an endpoint lookup
 lookupEndpoint-wf :
   ∀ {r m e es}
   → All WFEndpoint es
@@ -986,6 +912,7 @@ lookupEndpoint-wf {es = []} all[] ()
 ```
 
 ```agda
+-- Lift a tail failure to the full list
 liftEndpointFailure :
     ∀ {h es new}
   → (Endpoint.route h , Endpoint.method h) ∉ endpointKeys es
@@ -1016,8 +943,6 @@ liftEndpointFailure h∉ (EndpointDrift' r m e₀ e₁ lkOld lkNew d) =
     d
 ```
 
-### Decision
-
 ```agda
 Endpoints⊑? :
     (old new : List Endpoint)
@@ -1041,17 +966,10 @@ Endpoints⊑? (e :: es) new (uniq::_ e∉ uniqRest) (all::_ wfE wfRest) wfNew
 ... | inl ok | inl rest = inl ((e' , (refl , ok)) , rest)
 ```
 
----
-
-### 3.3 API-Level Refinement Check
-
-
-With component and endpoint refinement both decidable, API refinement follows by running each check in sequence. Failures are converted to `Drift` witnesses via the helpers below.
-
-
-### Helpers
+### 3.3 Putting it together
 
 ```agda
+-- Extract well-formedness facts from WFAPI
 wfAPI-components : ∀ {a} → WFAPI a → All WFSchema (values (API.components a))
 wfAPI-components (wf-api wfComps _ _ _) = wfComps
 
@@ -1066,6 +984,7 @@ wfAPI-pathUniq (wf-api _ _ _ uniq) = uniq
 ```
 
 ```agda
+-- Convert local failures to API-level Drift
 componentFailure→Drift : ∀ {a₀ a₁} → ComponentFailure (API.components a₀) (API.components a₁) → Drift a₀ a₁
 componentFailure→Drift (ComponentRemoved' k notNoth missing) = ComponentRemoved notNoth missing
 componentFailure→Drift (ComponentDrift' k s t lkOld lkNew d) = ComponentDriftWitness lkOld lkNew d
@@ -1076,8 +995,6 @@ endpointFailure→Drift : ∀ {a₀ a₁} → EndpointFailure (API.paths a₀) (
 endpointFailure→Drift (EndpointRemoved' r m notNoth missing) = EndpointRemoved notNoth missing
 endpointFailure→Drift (EndpointDrift' r m e₀ e₁ lkOld lkNew d) = EndpointDriftWitness lkOld lkNew d
 ```
-
-### Decision
 
 ```agda
 API⊑? : (a₀ a₁ : API) → WFAPI a₀ → WFAPI a₁ → API⊑ a₀ a₁ ∔ Drift a₀ a₁
@@ -1100,11 +1017,12 @@ API⊑? a₀ a₁ wf₀ wf₁
 
 ---
 
-## 4. Decidability of API Refinement
+## 4. Main Result
 
-The previous sections construct a decision procedure `API⊑?` that returns either a refinement proof or a structured `Drift` witness. We now combine this with `DriftSound` to recover a plain `Dec (API⊑ a₀ a₁)`.
+The previous sections built a decision procedure `API⊑?` that returns either a refinement proof or a structured drift witness. To get a plain `Dec (API⊑ a₀ a₁)`, we combine this with `DriftSound`, which proves that any drift witness refutes refinement.
 
-This is the main result of this module: refinement between well-formed APIs is decidable, and incompatibility always has a concrete structural explanation.
+This gives us the main result: refinement between well-formed APIs is decidable, and every incompatibility has a concrete structural explanation.
+
 ```agda
 API⊑-decidable : ∀ (a₀ a₁ : API) → WFAPI a₀ → WFAPI a₁ → Dec (API⊑ a₀ a₁)
 API⊑-decidable a₀ a₁ wf₀ wf₁
