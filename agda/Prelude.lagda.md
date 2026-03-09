@@ -79,6 +79,11 @@ A × B = Σ A (λ _ → B)
 
 infixr 2 _×_
 
+_×-dec_ : ∀ {P Q : Set} → Dec P → Dec Q → Dec (P × Q)
+yes p ×-dec yes q = yes (p , q)
+yes p ×-dec no ¬q = no (λ where (_ , q) → ¬q q)
+no ¬p ×-dec _ = no (λ where (p , _) → ¬p p)
+
 ∃ : ∀ {A : Set} → (A → Set) → Set
 ∃ {A} P = Σ A P
 

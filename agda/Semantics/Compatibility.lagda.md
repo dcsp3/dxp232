@@ -43,3 +43,21 @@ _≈compat?_ : (a₀ a₁ : WFAPIₛ) → Dec (a₀ ≈compat a₁)
 ```
 
 Therefore API evolution verification is decidable. Compatibility is not only well-defined but also algorithmically checkable.
+
+---
+
+## 3. API Equivalence
+
+Two APIs are equivalent when compatibility holds in both directions. This is useful for bidirectional compatibility analysis and for checking whether refactorings preserve observable behaviour.
+
+```agda
+_≈equiv_ : WFAPIₛ → WFAPIₛ → Set
+a ≈equiv b = (a ≈compat b) × (b ≈compat a)
+```
+
+Equivalence is also decidable by checking both compatibility directions independently.
+
+```agda
+_≈equiv?_ : (a₀ a₁ : WFAPIₛ) → Dec (a₀ ≈equiv a₁)
+a₀ ≈equiv? a₁ = (a₀ ≈compat? a₁) ×-dec (a₁ ≈compat? a₀)
+```
