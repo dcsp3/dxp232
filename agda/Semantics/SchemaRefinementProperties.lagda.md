@@ -76,6 +76,14 @@ lookupProp-∉-nothing {k} {(k' , _) :: ps} (notin::_ k≢k' k∉rest)
   with k ≟ k'
 ... | yes refl = ⊥-elim (k≢k' refl)
 ... | no  _    = lookupProp-∉-nothing k∉rest
+
+-- Extract well-formedness from a property lookup
+lookupProp-wf : ∀ {k s ps} → All WFSchema (values ps) → lookupProp k ps ≡ just s → WFSchema s
+lookupProp-wf {k} {s} {[]} _ ()
+lookupProp-wf {k} {s} {(k' , s') :: ps} (all::_ wfS wfRest) lk
+  with k ≟ k'
+... | yes refl = subst WFSchema (just-inj lk) wfS
+... | no  _    = lookupProp-wf wfRest lk
 ```
 
 ---

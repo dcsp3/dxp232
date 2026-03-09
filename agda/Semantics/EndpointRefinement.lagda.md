@@ -215,6 +215,42 @@ lookupParam-key {p} {q} {new} lkeq =
 ```
 
 ```agda
+-- Transform a lookup by using the parameter's own location and name fields
+lookupParam-self :
+  ∀ {ℓ k p ps}
+  → lookupParam ℓ k ps ≡ just p
+  → lookupParam (Parameter.location p) (Parameter.name p) ps ≡ just p
+lookupParam-self {ℓ} {k} {p} {ps} lk =
+  subst (λ ℓ' → lookupParam ℓ' (Parameter.name p) ps ≡ just p)
+        (sym (lookupParam-location {ps = ps} lk))
+        (subst (λ k' → lookupParam ℓ k' ps ≡ just p)
+               (sym (lookupParam-name {ps = ps} lk))
+               lk)
+```
+
+```agda
+-- Strip an optional head parameter from a lookup that finds a required parameter
+lookupParam-strip :
+  ∀ {ℓ k p h rest}
+  → Parameter.required h ≡ false
+  → lookupParam ℓ k (h :: rest) ≡ just p
+  → Parameter.required p ≡ true
+  → lookupParam ℓ k rest ≡ just p
+lookupParam-strip {ℓ} {k} {p} {h} {rest} hReq lk req
+  with ParamLocation≟ ℓ (Parameter.location h)
+... | no _ = lk
+... | yes refl
+  with k ≟ Parameter.name h
+... | no _ = lk
+... | yes refl =
+      ⊥-elim
+        (false≢true
+          (trans
+            (trans (sym hReq) (cong Parameter.required (just-inj lk)))
+            req))
+```
+
+```agda
 lookupResp-here :
   ∀ {st s rs}
   → lookupResp st (response st s :: rs) ≡ just s
@@ -232,6 +268,20 @@ lookupResp-there {st} {st₀} {s₀} {rs} {t} st₀≢st ih
   with Status≟ st st₀
 ... | yes st≡st₀ = ⊥-elim (st₀≢st (sym st≡st₀))
 ... | no  _      = ih
+```
+
+```agda
+-- Extract well-formedness from a response lookup
+lookupResp-wf :
+    ∀ {st t} {rs : List Response}
+  → All WFResponse rs
+  → lookupResp st rs ≡ just t
+  → WFSchema t
+lookupResp-wf {st} {rs = response st' s :: rs} (all::_ (wf-response wfS) rest) lk
+  with Status≟ st st'
+... | no  _    = lookupResp-wf rest lk
+... | yes refl = subst WFSchema (just-inj lk) wfS
+lookupResp-wf {rs = []} all[] ()
 ```
 
 ```agda

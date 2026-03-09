@@ -20,7 +20,7 @@ open import Semantics.Variance
 
 open import Semantics.SchemaRefinement
 open import Semantics.SchemaRefinementProperties
-  using (lookupProp-here; lookupProp-skip; lookupProp-∉-nothing; ⊑Co-refl; ⊑Co-trans; prim≢array; prim≢object)
+  using (lookupProp-here; lookupProp-skip; lookupProp-∉-nothing; lookupProp-wf; ⊑Co-refl; ⊑Co-trans; prim≢array; prim≢object)
 
 open import Semantics.EndpointRefinement
 open import Semantics.APIRefinement
@@ -59,15 +59,6 @@ data PropertyFailure
     → lookupProp k qs ≡ just ti
     → SchemaDrift si ti
     → PropertyFailure ps qs
-```
-
-```agda
-lookupProp-wf : ∀ {k s ps} → All WFSchema (values ps) → lookupProp k ps ≡ just s → WFSchema s
-lookupProp-wf {k} {s} {[]} _ ()
-lookupProp-wf {k} {s} {(k' , s') :: ps} (all::_ wfS wfRest) lk
-  with k ≟ k'
-... | yes refl = subst WFSchema (just-inj lk) wfS
-... | no  _    = lookupProp-wf wfRest lk
 ```
 
 ```agda
@@ -247,11 +238,18 @@ Each check is decided separately and failures are packaged into the correspondin
 
 ### 2.1 Decidable Parameter Refinement
 
-Parameter contravariance splits into two checks: `OldParamsPreserved?` scans the old list ensuring every parameter is preserved compatibly, and `NewRequiredSafe?` scans the new list ensuring no new required parameter is introduced. Failures are recorded separately and converted to `EndpointDrift`.
+Parameter contravariance splits into two independent checks, each scanning one of the two parameter lists:
+
+- `OldParamsPreserved?` walks the **old** list and verifies every parameter survived into the new list compatibly: same schema, and required flag not weakened.
+- `NewRequiredSafe?` walks the **new** list and ensures no brand-new required parameter has been added without already being present (optionally) in the old list.
+
+Each check produces either a success witness or a structured failure value. The two are then combined by `Params⊑Contra?` into the single `Params⊑Contra` judgement used by `Endpoint⊑?`.
 
 ---
 
-### `OldParamsPreserved`
+### 2.1.1 `OldParamsPreserved?`
+
+`ParamFailure` records the three ways preservation can fail: the parameter was removed entirely, its schema changed, or it was strengthened from optional to required.
 
 ### Helpers
 
@@ -330,6 +328,8 @@ liftParamFailure {p} {ps} p∉ (RequiredParamAdded p₀ p₁ loc≡ name≡ lk�
 ```
 
 ### Decision
+
+`OldParamsPreserved?` recurses on the old parameter list. At each step it looks up the current parameter in the new list and checks schema equality and required-flag direction. Positive branches recurse; negative branches immediately return the appropriate `ParamFailure` constructor.
 
 ```agda
 OldParamsPreserved? :
@@ -413,7 +413,9 @@ OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
 
 ---
 
-### `NewRequiredSafe`
+### 2.1.2 `NewRequiredSafe?`
+
+`NewRequiredFailure` records the two ways the new-required check can fail: a brand-new required parameter with no counterpart in the old list, or a parameter that existed but was optional and has been upgraded to required.
 
 ### Helpers
 
@@ -459,30 +461,6 @@ liftNewRequiredFailure {h = h} h∉ (NewRequiredOptionalInOld ℓ k pOld p lkOld
 ```
 
 ### Decision
-
-```agda
-lookupParam-strip :
-  ∀ {ℓ k p h rest}
-  → Parameter.required h ≡ false
-  → lookupParam ℓ k (h :: rest) ≡ just p
-  → Parameter.required p ≡ true
-  → lookupParam ℓ k rest ≡ just p
-
-lookupParam-strip {ℓ} {k} {p} {h} {rest} hReq lk req
-  with ParamLocation≟ ℓ (Parameter.location h)
-... | no _ = lk
-
-... | yes refl
-  with k ≟ Parameter.name h
-... | no _ = lk
-
-... | yes refl =
-      ⊥-elim
-        (false≢true
-          (trans
-            (trans (sym hReq) (cong Parameter.required (just-inj lk)))
-            req))
-```
 
 ```agda
 NewRequiredSafe? : (old new : List Parameter) → Unique (paramKeys new) → Dec (NewRequiredSafe old new)
@@ -625,8 +603,11 @@ NewRequiredSafe∔ old new uniq
 ... | no ¬safe = inr (extractFailure old new uniq ¬safe)
 ```
 
-
 ---
+
+### 2.1.3 Combining the Checks
+
+With both sub-checks decided, `Params⊑Contra?` runs them in sequence and pairs the two success witnesses into a `Params⊑Contra` proof, or returns whichever failure was found first.
 
 ```agda
 Params⊑Contra? :
@@ -708,19 +689,6 @@ data RespFailure (old new : List Response) : Set where
     → lookupResp st new ≡ just t
     → SchemaDrift s t
     → RespFailure old new
-```
-
-```agda
-lookupResp-wf :
-    ∀ {st t} {rs : List Response}
-  → All WFResponse rs
-  → lookupResp st rs ≡ just t
-  → WFSchema t
-lookupResp-wf {st} {rs = response st' s :: rs} (all::_ (wf-response wfS) rest) lk
-  with Status≟ st st'
-... | no  _    = lookupResp-wf rest lk
-... | yes refl = subst WFSchema (just-inj lk) wfS
-lookupResp-wf {rs = []} all[] ()
 ```
 
 ```agda
@@ -815,17 +783,6 @@ paramFailure→EndpointDrift (RequiredParamAdded p₀ p₁ loc≡ name≡ lk₀ 
 ```
 
 ```agda
-lookupParam-self :
-  ∀ {ℓ k p ps}
-  → lookupParam ℓ k ps ≡ just p
-  → lookupParam (Parameter.location p) (Parameter.name p) ps ≡ just p
-lookupParam-self {ℓ} {k} {p} {ps} lk =
-  subst (λ ℓ' → lookupParam ℓ' (Parameter.name p) ps ≡ just p)
-        (sym (lookupParam-location {ps = ps} lk))
-        (subst (λ k' → lookupParam ℓ k' ps ≡ just p)
-               (sym (lookupParam-name {ps = ps} lk))
-               lk)
-
 newRequiredFailure→EndpointDrift :
     ∀ {e₀ e₁}
   → NewRequiredFailure (Endpoint.parameters e₀) (Endpoint.parameters e₁)
