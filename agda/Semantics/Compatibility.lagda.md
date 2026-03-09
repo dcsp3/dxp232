@@ -1,11 +1,10 @@
 # Compatibility
 
-OpenAPI specs describe structural interaction constraints between clients and servers. These constraints form a contract, specifying which operations exist, which parameters must be supplied, and what shapes of responses are guaranteed.
+OpenAPI specifications encode structural contracts: which operations exist, which parameters are required, and which response shapes are guaranteed.
 
-Backwards compatibility therefore amounts to preservation of this contract under evolution. A new version of an API is compatible with an old one
-precisely when it preserves all structural guarantees made by the old specification.
+Backward compatibility captures preservation of this contract under evolution. A new API version is compatible with an old one when it preserves the structural guarantees provided by the old specification.
 
-In our development, this notion is formalised using API refinement. Compatibility is defined as API refinement restricted to well-formed specifications.
+In this development, compatibility is formalised as API refinement restricted to well-formed specifications. This restriction is important because it supports deterministic lookup and, consequently, decidable checking.
 
 ```agda
 module Semantics.Compatibility where
@@ -16,19 +15,31 @@ open import WellFormed.Core
 
 open import Semantics.APIRefinement
 open import Semantics.APIRefinementProperties
+open import Semantics.DecidableRefinement
 ```
 
 ---
 
 ## 1. Compatibility Definition
 
-Compatibility is defined only for well-formed APIs. We reuse the type of well-formed APIs introduced in `APIRefinementProperties`.
+Compatibility restricts API refinement to well-formed specifications. Well-formedness (unique keys, proper nesting) makes decidability possible by guaranteeing deterministic lookup.
 
 ```agda
 _≈compat_ : WFAPIₛ → WFAPIₛ → Set
 (a , _) ≈compat (b , _) = API⊑ a b
 ```
 
-Intuitively, `(a , wfA) ≈compat (b , wfB)` means that `b` preserves all structural guarantees made by `a`, and is therefore a safe contract-preserving evolution.
+Thus, `(a , wfA) ≈compat (b , wfB)` means that `b` refines `a`: every component and endpoint in `a` is preserved in `b` with a compatible type change. This is the formal notion of contract preservation.
 
 ---
+
+## 2. Decidable Compatibility
+
+Backward compatibility is decidable for well-formed APIs. Given two well-formed OpenAPI specifications, we can either construct a compatibility proof or return a structural witness of incompatibility.
+
+```agda
+_≈compat?_ : (a₀ a₁ : WFAPIₛ) → Dec (a₀ ≈compat a₁)
+(a₀ , wfₐ₀) ≈compat? (a₁ , wfₐ₁) = API⊑-decidable a₀ a₁ wfₐ₀ wfₐ₁
+```
+
+Therefore API evolution verification is decidable. Compatibility is not only well-defined but also algorithmically checkable.
