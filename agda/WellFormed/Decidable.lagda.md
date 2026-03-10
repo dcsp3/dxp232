@@ -29,15 +29,13 @@ for nested schemas; `AllWFProps?` calls `WFSchema?` on each property value.
 ### 1.1 Shared utilities
 
 ```agda
-HasDuplicate? : (xs : List String) → Unique xs ∔ HasDuplicate xs
-HasDuplicate? [] = inl uniq[]
-HasDuplicate? (x :: xs)
-  with x ∈? xs
+HasDuplicate? : ∀ {A} → ((x y : A) → Dec (x ≡ y)) → (xs : List A) → Unique xs ∔ HasDuplicate xs
+HasDuplicate? eq [] = inl uniq[]
+HasDuplicate? eq (x :: xs) with ∈?-gen eq x xs
 ... | yes x∈xs = inr (dup-here x∈xs)
-... | no  x∉xs
-  with HasDuplicate? xs
+... | no  x∉xs with HasDuplicate? eq xs
 ...   | inr dup    = inr (dup-there dup)
-...   | inl uniqXs = inl (uniq::_ (∉-intro x∉xs) uniqXs)
+...   | inl uniqXs = inl (uniq::_ (∉-intro-gen eq x∉xs) uniqXs)
 ```
 
 ### 1.2 Internal witness type for property checking
@@ -122,10 +120,10 @@ mutual
               let (k , (k∈req , k∉keys)) = ⊆-counterexample ¬req⊆keys
               in  inr (object-missing-required tyEq k k∈req k∉keys)
   ...     | yes req⊆keys
-        with HasDuplicate? (keys (Schema.properties s))
+        with HasDuplicate? _≟_ (keys (Schema.properties s))
   ...       | inr dupKeys = inr (object-duplicate-properties tyEq dupKeys)
   ...       | inl uniqKeys
-          with HasDuplicate? (Schema.required s)
+          with HasDuplicate? _≟_ (Schema.required s)
   ...         | inr dupReq  = inr (object-duplicate-required tyEq dupReq)
   ...         | inl uniqReq =
                   inl (wf-object tyEq itemsEq propsWF req⊆keys uniqKeys uniqReq)
@@ -225,7 +223,7 @@ parameter appears as a placeholder.
 ```agda
 WFPath? : (p : Path) (ps : List Parameter) → WFPath p ps ∔ PathIllFormed p ps
 WFPath? p ps
-  with HasDuplicate? (pathPlaceholders p)
+  with HasDuplicate? _≟_ (pathPlaceholders p)
 ... | inr dup = inr (duplicate-placeholder dup)
 ... | inl uniq
   with pathPlaceholders p ⊆? pathParamNames ps
@@ -242,3 +240,110 @@ WFPath? p ps
 
 ---
 
+## 4. Body Well-Formedness
+
+`WFBody?` pattern matches directly on the body constructor. `NoBody` and `NoBodyD` are unconditionally well-formed. The three schema-carrying cases delegate to `WFSchema?` and lift the result into the appropriate `BodyIllFormed` constructor on failure.
+
+```agda
+WFBody? : ∀ {m} → (b : Body m) → WFBody b ∔ BodyIllFormed b
+WFBody? NoBody       = inl wf-nobody
+WFBody? NoBodyD      = inl wf-nobodyD
+WFBody? (HasBody  s) with WFSchema? s
+... | inl wf  = inl (wf-hasBody  wf)
+... | inr ill = inr (post-body-ill-formed  ill)
+WFBody? (HasBodyU s) with WFSchema? s
+... | inl wf  = inl (wf-hasBodyU wf)
+... | inr ill = inr (put-body-ill-formed   ill)
+WFBody? (HasBodyP s) with WFSchema? s
+... | inl wf  = inl (wf-hasBodyP wf)
+... | inr ill = inr (patch-body-ill-formed ill)
+```
+
+---
+
+## 5. Response Well-Formedness
+
+`WFResponse?` is the simplest checker: a response is just a status code paired with a schema, so well-formedness reduces to a single `WFSchema?` call.
+
+```agda
+WFResponse? : (r : Response) → WFResponse r ∔ ResponseIllFormed r
+WFResponse? (response st s) with WFSchema? s
+... | inl wf  = inl (wf-response wf)
+... | inr ill = inr (response-schema-ill-formed ill)
+```
+
+---
+
+## 6. Endpoint Well-Formedness
+
+`WFEndpoint?` works through the six obligations from `wf-endpoint` in order, returning the first failure it finds.
+
+### 6.1 Internal witness types and list checkers
+
+`BadParam` and `BadResponse` mirror `BadProp` from section 1: each records the first offending list element together with its membership proof, so the result can be fed directly into the endpoint ill-formedness constructors.
+
+```agda
+data BadParam : List Parameter → Set where
+  bad-param :
+    ∀ {ps}
+    → (p : Parameter)
+    → p ∈ ps
+    → ParameterIllFormed p
+    → BadParam ps
+
+data BadResponse : List Response → Set where
+  bad-response :
+    ∀ {rs}
+    → (r : Response)
+    → r ∈ rs
+    → ResponseIllFormed r
+    → BadResponse rs
+```
+
+```agda
+AllWFParams? : (ps : List Parameter) → All WFParameter ps ∔ BadParam ps
+AllWFParams? [] = inl all[]
+AllWFParams? (p :: ps) with WFParameter? p
+... | inr ill = inr (bad-param p here ill)
+... | inl wf
+  with AllWFParams? ps
+...   | inl rest = inl (all::_ wf rest)
+...   | inr (bad-param p' p'∈tail ill') = inr (bad-param p' (there p'∈tail) ill')
+
+AllWFResponses? : (rs : List Response) → All WFResponse rs ∔ BadResponse rs
+AllWFResponses? [] = inl all[]
+AllWFResponses? (r :: rs) with WFResponse? r
+... | inr ill = inr (bad-response r here ill)
+... | inl wf
+  with AllWFResponses? rs
+...   | inl rest = inl (all::_ wf rest)
+...   | inr (bad-response r' r'∈tail ill') = inr (bad-response r' (there r'∈tail) ill')
+```
+
+### 6.2 Main endpoint dispatcher
+
+```agda
+WFEndpoint? : (e : Endpoint) → WFEndpoint e ∔ EndpointIllFormed e
+WFEndpoint? e
+  with WFPath? (Endpoint.route e) (Endpoint.parameters e)
+... | inr illPath = inr (endpoint-path-ill-formed illPath)
+... | inl wfPath
+  with AllWFParams? (Endpoint.parameters e)
+... | inr (bad-param p p∈ps illP) = inr (endpoint-parameter-ill-formed p p∈ps illP)
+... | inl allWFParams
+  with HasDuplicate? ParamKey≟ (paramKeys (Endpoint.parameters e))
+... | inr dup = inr (endpoint-duplicate-parameters dup)
+... | inl uniqParams
+  with WFBody? (Endpoint.body e)
+... | inr illBody = inr (endpoint-body-ill-formed illBody)
+... | inl wfBody
+  with AllWFResponses? (Endpoint.responses e)
+... | inr (bad-response r r∈rs illR) = inr (endpoint-response-ill-formed r r∈rs illR)
+... | inl allWFResps
+  with HasDuplicate? Status≟ (respKeys (Endpoint.responses e))
+... | inr dup = inr (endpoint-duplicate-statuses dup)
+... | inl uniqResps =
+      inl (wf-endpoint wfPath allWFParams uniqParams wfBody allWFResps uniqResps)
+```
+
+---

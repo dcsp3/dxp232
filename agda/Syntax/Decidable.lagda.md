@@ -190,7 +190,20 @@ ParamLocation≟ query path  = no (λ ())
 
 ---
 
-## 6. PathSegment equality
+## 6. ParamKey equality
+
+```agda
+ParamKey≟ : (a b : ParamLocation × String) → Dec (a ≡ b)
+ParamKey≟ (la , na) (lb , nb) with ParamLocation≟ la lb
+... | no  la≢lb = no (λ { refl → la≢lb refl })
+... | yes refl  with na ≟ nb
+...   | no  na≢nb = no (λ { refl → na≢nb refl })
+...   | yes refl  = yes refl
+```
+
+---
+
+## 7. PathSegment equality
 
 ```agda
 PathSegment≟ : (a b : PathSegment) → Dec (a ≡ b)
@@ -211,7 +224,7 @@ PathSegment≟ (param _) (lit _) = no (λ ())
 
 ---
 
-## 7. Path equality
+## 8. Path equality
 
 ```agda
 Path≟ : (p q : Path) → Dec (p ≡ q)
