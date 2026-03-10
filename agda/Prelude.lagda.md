@@ -154,6 +154,13 @@ data _∉_ {A : Set} (x : A) : List A → Set where
 ... | yes refl = ⊥-elim (¬∈ here)
 ... | no  x≢y  = notin::_ x≢y (∉-intro (λ x∈ys → ¬∈ (there x∈ys)))
 
+∉-intro-gen : ∀ {A} {x : A} {xs : List A} → ((a b : A) → Dec (a ≡ b)) → ¬ (x ∈ xs) → x ∉ xs
+∉-intro-gen {xs = []} _ _ = notin[]
+∉-intro-gen {x = x} {xs = y :: ys} eq ¬∈
+  with eq x y
+... | yes refl = ⊥-elim (¬∈ here)
+... | no  x≢y  = notin::_ x≢y (∉-intro-gen eq (λ x∈ys → ¬∈ (there x∈ys)))
+
 ∉-elim : ∀ {A : Set} {x : A} {xs : List A} → x ∉ xs → x ∈ xs → ⊥
 ∉-elim notin[] ()
 ∉-elim (notin::_ x≢y x∉ys) here        = x≢y refl
@@ -205,6 +212,14 @@ _∈?_ x (y :: ys) with x ≟ y
             here      → x≢y refl
           ; (there q) → np q
           })
+
+∈?-gen : ∀ {A} → ((x y : A) → Dec (x ≡ y)) → (x : A) → (xs : List A) → Dec (x ∈ xs)
+∈?-gen eq x [] = no (λ ())
+∈?-gen eq x (y :: ys) with eq x y
+... | yes refl = yes here
+... | no  x≢y  with ∈?-gen eq x ys
+...   | yes p  = yes (there p)
+...   | no ¬p  = no (λ { here → x≢y refl ; (there q) → ¬p q })
 
 _⊆?_ : (xs ys : List String) → Dec (xs ⊆ ys)
 _⊆?_ [] ys = yes all[]

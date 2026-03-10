@@ -54,6 +54,13 @@ Primitive and container types supported by the DSL.
 ```agda
 data Base : Set where
   integer string boolean number object array : Base
+
+-- Classifies which bases are primitive types (not containers)
+data IsPrimitive : Base → Set where
+  prim-integer : IsPrimitive integer
+  prim-string  : IsPrimitive string
+  prim-boolean : IsPrimitive boolean
+  prim-number  : IsPrimitive number
 ```
 
 ### 2.2 Schema Definition

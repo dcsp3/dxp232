@@ -40,12 +40,6 @@ That’s great for expressing OpenAPI-like documents, but it permits contradicto
 This mirrors the “structural validity” you would expect from an OpenAPI-shaped schema in our subset. It intentionally does not attempt to validate `enum`, `default`, or `examples` against the schema type, since those are semantic/value-level concerns (handled later).
 
 ```agda
-data IsPrimitive : Base → Set where
-  prim-integer : IsPrimitive integer
-  prim-string  : IsPrimitive string
-  prim-boolean : IsPrimitive boolean
-  prim-number  : IsPrimitive number
-
 data WFSchema : Schema → Set where
 
   wf-object :
