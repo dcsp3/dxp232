@@ -92,6 +92,20 @@ Base≟ array   object  = no (λ ())
 
 ---
 
+## 2.1 Primitive base classifier
+
+```agda
+IsPrimitive? : (b : Base) → Dec (IsPrimitive b)
+IsPrimitive? integer = yes prim-integer
+IsPrimitive? string  = yes prim-string
+IsPrimitive? boolean = yes prim-boolean
+IsPrimitive? number  = yes prim-number
+IsPrimitive? object  = no (λ ())
+IsPrimitive? array   = no (λ ())
+```
+
+---
+
 ## 3. Method equality
 
 ```agda
