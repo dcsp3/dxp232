@@ -347,3 +347,63 @@ WFEndpoint? e
 ```
 
 ---
+
+
+## 7. API Well-Formedness
+
+`WFAPI?` is the top-level checker. It reuses `AllWFProps?` from section 1 for component schemas, `HasDuplicate? _≟_` for component name uniqueness,
+`AllWFEndpoints?` for the path list, and `HasDuplicate? EndpointKey≟` for endpoint key uniqueness.
+
+### 7.1 Endpoint list checker
+
+```agda
+EndpointKey≟ : (a b : Path × Method) → Dec (a ≡ b)
+EndpointKey≟ (pa , ma) (pb , mb) with Path≟ pa pb
+... | no  pa≢pb = no (λ { refl → pa≢pb refl })
+... | yes refl
+  with Method≟ ma mb
+...   | no  ma≢mb = no (λ { refl → ma≢mb refl })
+...   | yes refl  = yes refl
+
+data BadEndpoint : List Endpoint → Set where
+  bad-endpoint :
+    ∀ {es}
+    → (e : Endpoint)
+    → e ∈ es
+    → EndpointIllFormed e
+    → BadEndpoint es
+
+AllWFEndpoints? : (es : List Endpoint) → All WFEndpoint es ∔ BadEndpoint es
+AllWFEndpoints? [] = inl all[]
+AllWFEndpoints? (e :: es) with WFEndpoint? e
+... | inr ill = inr (bad-endpoint e here ill)
+... | inl wf
+  with AllWFEndpoints? es
+...   | inl rest = inl (all::_ wf rest)
+...   | inr (bad-endpoint e' e'∈tail ill') = inr (bad-endpoint e' (there e'∈tail) ill')
+```
+
+### 7.2 Main API dispatcher
+
+```agda
+WFAPI? : (api : API) → WFAPI api ∔ APIIllFormed api
+WFAPI? api
+  with AllWFProps? (API.components api)
+... | inr (bad-prop k s k,s∈comps illS) = inr (api-component-ill-formed k s k,s∈comps illS)
+... | inl allWFComps
+  with HasDuplicate? _≟_ (componentKeys api)
+... | inr dup = inr (api-duplicate-components dup)
+... | inl uniqComps
+  with AllWFEndpoints? (API.paths api)
+... | inr (bad-endpoint e e∈paths illE) = inr (api-endpoint-ill-formed e e∈paths illE)
+... | inl allWFEndpoints
+  with HasDuplicate? EndpointKey≟ (endpointKeys (API.paths api))
+... | inr dup = inr (api-duplicate-endpoints dup)
+... | inl uniqEndpoints =
+      inl (wf-api allWFComps uniqComps allWFEndpoints uniqEndpoints)
+```
+
+`WFAPI?` is the entry point for the checker. Given any `API`, it either
+produces a `WFAPI` proof that can be passed into semantic and refinement
+definitions, or a structured `APIIllFormed` witness that can be walked to
+explain exactly what went wrong, and where.
