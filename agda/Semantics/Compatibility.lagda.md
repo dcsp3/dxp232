@@ -16,6 +16,7 @@ open import WellFormed.Core
 open import Semantics.APIRefinement
 open import Semantics.APIRefinementProperties
 open import Semantics.DecidableRefinement
+open import Semantics.DriftProperties
 ```
 
 ---
@@ -39,7 +40,10 @@ Backward compatibility is decidable for well-formed APIs. Given two well-formed 
 
 ```agda
 _≈compat?_ : (a₀ a₁ : WFAPIₛ) → Dec (a₀ ≈compat a₁)
-(a₀ , wfₐ₀) ≈compat? (a₁ , wfₐ₁) = API⊑-decidable a₀ a₁ wfₐ₀ wfₐ₁
+(a₀ , wfₐ₀) ≈compat? (a₁ , wfₐ₁)
+  with API⊑? a₀ a₁ wfₐ₀ wfₐ₁
+... | inl ok    = yes ok
+... | inr drift = no (DriftSound drift)
 ```
 
 Therefore API evolution verification is decidable. Compatibility is not only well-defined but also algorithmically checkable.
