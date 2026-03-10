@@ -82,13 +82,10 @@ lookupResp st (response st' s :: rs) with Status≟ st st'
 
 ### 1.2 Lookup computation lemmas
 
-
 The refinement relations below use lookup to align list-based components.
-To make the properties proofs go through, we record the two basic lookup
-facts we will use repeatedly:
+To make the properties proofs go through, we record some general facts about the behaviour of parameter lookup.
 
-- **here**: looking up the head key succeeds immediately
-- **there**: if the head key does not match, lookup proceeds into the tail
+Together, these lemmas allow us to reason about lookup results constructively in later proofs, for example by transporting lookup results across list extensions or by extracting information about the parameter returned by a successful lookup.
 
 ```agda
 lookupParam-here :
@@ -105,7 +102,9 @@ lookupParam-here {p} {ps}
   with (Parameter.name p ≟ Parameter.name p)
 ... | yes refl = refl
 ... | no  contra = ⊥-elim (contra refl)
+```
 
+```agda
 -- skip a head parameter whose (location,name) cannot match (ℓ,k)
 lookupParam-there :
     ∀ {h ℓ k ps p}
@@ -119,6 +118,136 @@ lookupParam-there {h} {ℓ} {k} {ps} {p} head≢ ih
   with (k ≟ Parameter.name h)
 ...   | no _ = ih
 ...   | yes refl = ⊥-elim (head≢ refl)
+```
+
+```agda
+lookupParam→∈ :
+  ∀ {ℓ k p ps}
+  → lookupParam ℓ k ps ≡ just p
+  → (ℓ , k) ∈ paramKeys ps
+
+lookupParam→∈ {ps = []} ()
+
+lookupParam→∈ {ℓ} {k} {p} {q :: qs} lk
+  with ParamLocation≟ ℓ (Parameter.location q)
+... | no _ =
+      there (lookupParam→∈ lk)
+
+... | yes refl
+  with k ≟ Parameter.name q
+...   | no _ =
+        there (lookupParam→∈ lk)
+
+...   | yes refl =
+        here
+```
+
+```agda
+lookupParam-∉-nothing :
+    ∀ {ℓ k ps}
+  → (ℓ , k) ∉ paramKeys ps
+  → lookupParam ℓ k ps ≡ nothing
+
+lookupParam-∉-nothing {ℓ} {k} {[]} _ = refl
+
+lookupParam-∉-nothing {ℓ} {k} {p :: ps} (notin::_ head≢ tail∉)
+  with ParamLocation≟ ℓ (Parameter.location p)
+... | no  _ = lookupParam-∉-nothing tail∉
+... | yes refl
+  with k ≟ Parameter.name p
+... | no  _ = lookupParam-∉-nothing tail∉
+... | yes refl = ⊥-elim (head≢ refl)
+```
+
+```agda
+lookupParam-location :
+  ∀ {ℓ k ps p}
+  → lookupParam ℓ k ps ≡ just p
+  → Parameter.location p ≡ ℓ
+lookupParam-location {ℓ} {k} {[]} ()
+lookupParam-location {ℓ} {k} {h :: ps} lk
+  with ParamLocation≟ ℓ (Parameter.location h)
+... | no  _    = lookupParam-location {ps = ps} lk
+... | yes refl
+  with k ≟ Parameter.name h
+... | no  _    = lookupParam-location {ps = ps} lk
+... | yes refl = subst (λ x → Parameter.location x ≡ ℓ) (just-inj lk) refl
+```
+
+```agda
+lookupParam-name :
+  ∀ {ℓ k ps p}
+  → lookupParam ℓ k ps ≡ just p
+  → Parameter.name p ≡ k
+lookupParam-name {ℓ} {k} {[]} ()
+lookupParam-name {ℓ} {k} {h :: ps} lk
+  with ParamLocation≟ ℓ (Parameter.location h)
+... | no  _    = lookupParam-name {ps = ps} lk
+... | yes refl
+  with k ≟ Parameter.name h
+... | no  _    = lookupParam-name {ps = ps} lk
+... | yes refl = subst (λ x → Parameter.name x ≡ k) (just-inj lk) refl
+```
+
+```agda
+lookupParam-key :
+  ∀ {p q new}
+  → lookupParam (Parameter.location p) (Parameter.name p) new ≡ just q
+  → lookupParam (Parameter.location q) (Parameter.name q) new ≡ just q
+lookupParam-key {p} {q} {new} lkeq =
+  subst
+    (λ ℓ → lookupParam ℓ (Parameter.name q) new ≡ just q)
+    (sym (lookupParam-location
+            {ℓ = Parameter.location p}
+            {k = Parameter.name p}
+            {ps = new}
+            {p = q}
+            lkeq))
+    (subst
+       (λ k → lookupParam (Parameter.location p) k new ≡ just q)
+       (sym (lookupParam-name
+               {ℓ = Parameter.location p}
+               {k = Parameter.name p}
+               {ps = new}
+               {p = q}
+               lkeq))
+       lkeq)
+```
+
+```agda
+-- Transform a lookup by using the parameter's own location and name fields
+lookupParam-self :
+  ∀ {ℓ k p ps}
+  → lookupParam ℓ k ps ≡ just p
+  → lookupParam (Parameter.location p) (Parameter.name p) ps ≡ just p
+lookupParam-self {ℓ} {k} {p} {ps} lk =
+  subst (λ ℓ' → lookupParam ℓ' (Parameter.name p) ps ≡ just p)
+        (sym (lookupParam-location {ps = ps} lk))
+        (subst (λ k' → lookupParam ℓ k' ps ≡ just p)
+               (sym (lookupParam-name {ps = ps} lk))
+               lk)
+```
+
+```agda
+-- Strip an optional head parameter from a lookup that finds a required parameter
+lookupParam-strip :
+  ∀ {ℓ k p h rest}
+  → Parameter.required h ≡ false
+  → lookupParam ℓ k (h :: rest) ≡ just p
+  → Parameter.required p ≡ true
+  → lookupParam ℓ k rest ≡ just p
+lookupParam-strip {ℓ} {k} {p} {h} {rest} hReq lk req
+  with ParamLocation≟ ℓ (Parameter.location h)
+... | no _ = lk
+... | yes refl
+  with k ≟ Parameter.name h
+... | no _ = lk
+... | yes refl =
+      ⊥-elim
+        (false≢true
+          (trans
+            (trans (sym hReq) (cong Parameter.required (just-inj lk)))
+            req))
 ```
 
 ```agda
@@ -141,6 +270,32 @@ lookupResp-there {st} {st₀} {s₀} {rs} {t} st₀≢st ih
 ... | no  _      = ih
 ```
 
+```agda
+-- Extract well-formedness from a response lookup
+lookupResp-wf :
+    ∀ {st t} {rs : List Response}
+  → All WFResponse rs
+  → lookupResp st rs ≡ just t
+  → WFSchema t
+lookupResp-wf {st} {rs = response st' s :: rs} (all::_ (wf-response wfS) rest) lk
+  with Status≟ st st'
+... | no  _    = lookupResp-wf rest lk
+... | yes refl = subst WFSchema (just-inj lk) wfS
+lookupResp-wf {rs = []} all[] ()
+```
+
+```agda
+lookupResp→∈ :
+  ∀ {st s rs}
+  → lookupResp st rs ≡ just s
+  → st ∈ respKeys rs
+lookupResp→∈ {st} {rs = response st' s :: rs} lk
+  with Status≟ st st'
+... | yes refl = here
+... | no  _    = there (lookupResp→∈ lk)
+lookupResp→∈ {rs = []} ()
+```
+
 Endpoint refinement will be defined by matching components via lookup, then applying the relevant variance-aware schema check, similar to schema refinement.
 
 ---
@@ -158,10 +313,20 @@ We define these first, then combine them into the main endpoint judgement.
 ### 2.1 Parameters
 
 A parameter is identified by its `(location , name)` pair.
-The new endpoint must still provide every parameter that old clients may send.
 
-Since parameters in our syntax carry a `Base` schema, we require the base type
-to be unchanged. We also forbid parameters from becoming newly required.
+Since parameters are consumed by the server, they are checked contravariantly. Contravariant refinement ensures that the new endpoint accepts at least all inputs that were valid for the old endpoint.
+
+This requires two conditions:
+
+1. **Preservation of existing inputs**  
+   Every parameter accepted by the old endpoint must still be accepted by the new endpoint, with the same base type and without strengthening its requiredness.
+
+2. **No new required inputs**
+   The new endpoint must not introduce any required parameter that was not already required in the old endpoint.
+
+Together, these conditions ensure that every request that was valid for the old endpoint remains valid for the new endpoint.
+
+Since parameters in our syntax carry only a `Base` schema, we require the base type to remain unchanged.
 
 ```agda
 ReqWeakens : Bool → Bool → Set
@@ -173,14 +338,32 @@ Param⊑Contra pOld pNew =
   × Parameter.name     pOld ≡ Parameter.name     pNew
   × Parameter.schema   pOld ≡ Parameter.schema   pNew
   × ReqWeakens (Parameter.required pOld) (Parameter.required pNew)
+```
 
-Params⊑Contra : List Parameter → List Parameter → Set
-Params⊑Contra [] new = ⊤
-Params⊑Contra (p :: ps) new =
+```agda
+OldParamsPreserved : List Parameter → List Parameter → Set
+OldParamsPreserved [] new = ⊤
+OldParamsPreserved (p :: ps) new =
   (Σ Parameter (λ p' →
        lookupParam (Parameter.location p) (Parameter.name p) new ≡ just p'
      × Param⊑Contra p p'))
-  × Params⊑Contra ps new
+  × OldParamsPreserved ps new
+
+NewRequiredSafe : List Parameter → List Parameter → Set
+NewRequiredSafe old new =
+  ∀ {ℓ k p}
+  → lookupParam ℓ k new ≡ just p
+  → Parameter.required p ≡ true
+  → Σ Parameter (λ pOld →
+       lookupParam ℓ k old ≡ just pOld
+     × Parameter.required pOld ≡ true)
+```
+
+```agda
+Params⊑Contra : List Parameter → List Parameter → Set
+Params⊑Contra old new =
+    OldParamsPreserved old new
+  × NewRequiredSafe old new
 ```
 
 ---

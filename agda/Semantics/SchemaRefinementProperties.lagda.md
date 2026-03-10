@@ -68,6 +68,22 @@ lookupProp-insert-after-head :
 lookupProp-insert-after-head {x} {k0} {s0} {k} {s} {target} x≢k with x ≟ k0
 ... | yes _ = refl
 ... | no  _ = lookupProp-skip {k = x} {k0 = k} {s = s} {ps = target} x≢k
+
+-- If a key is absent from the key list, lookup returns nothing
+lookupProp-∉-nothing : ∀ {k ps} → k ∉ keys ps → lookupProp k ps ≡ nothing
+lookupProp-∉-nothing {k} {[]} _ = refl
+lookupProp-∉-nothing {k} {(k' , _) :: ps} (notin::_ k≢k' k∉rest)
+  with k ≟ k'
+... | yes refl = ⊥-elim (k≢k' refl)
+... | no  _    = lookupProp-∉-nothing k∉rest
+
+-- Extract well-formedness from a property lookup
+lookupProp-wf : ∀ {k s ps} → All WFSchema (values ps) → lookupProp k ps ≡ just s → WFSchema s
+lookupProp-wf {k} {s} {[]} _ ()
+lookupProp-wf {k} {s} {(k' , s') :: ps} (all::_ wfS wfRest) lk
+  with k ≟ k'
+... | yes refl = subst WFSchema (just-inj lk) wfS
+... | no  _    = lookupProp-wf wfRest lk
 ```
 
 ---

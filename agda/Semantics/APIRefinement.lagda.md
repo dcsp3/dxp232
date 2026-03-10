@@ -84,6 +84,24 @@ lookupComponent-there {k} {k₀} {s₀} {cs} {t} k₀≢k ih
 
 ---
 
+### 1.3 Successful lookup implies key membership
+
+If lookup succeeds, the key must appear in the component list.
+
+```agda
+lookupComponent→∈ :
+  ∀ {k s cs}
+  → lookupComponent k cs ≡ just s
+  → k ∈ keys cs
+  
+lookupComponent→∈ {k} {cs = (k' , s') :: cs} lk
+  with k ≟ k'
+... | yes refl = here
+... | no  _    = there (lookupComponent→∈ lk)
+lookupComponent→∈ {cs = []} ()
+```
+
+---
 
 ## 2. Endpoint Lookup
 
@@ -152,6 +170,28 @@ lookupEndpoint-there {h} {r} {m} {es} {e} head≢ ih
   with Method≟ m (Endpoint.method h)
 ...   | no _ = ih
 ...   | yes refl = ⊥-elim (head≢ refl)
+```
+
+---
+
+### 2.3 Successful lookup implies key membership
+
+If lookup succeeds, the `(route, method)` pair must appear in the endpoint key list.
+
+```agda
+lookupEndpoint→∈ :
+  ∀ {r m e es}
+  → lookupEndpoint r m es ≡ just e
+  → (r , m) ∈ endpointKeys es
+  
+lookupEndpoint→∈ {r} {m} {es = e :: es} lk
+  with Path≟ r (Endpoint.route e)
+... | no  _    = there (lookupEndpoint→∈ lk)
+... | yes refl
+  with Method≟ m (Endpoint.method e)
+... | no  _    = there (lookupEndpoint→∈ lk)
+... | yes refl = here
+lookupEndpoint→∈ {es = []} ()
 ```
 
 ---
