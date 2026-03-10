@@ -1019,14 +1019,8 @@ API⊑? a₀ a₁ wf₀ wf₁
 
 ## 4. Main Result
 
-The previous sections built a decision procedure `API⊑?` that returns either a refinement proof or a structured drift witness. To get a plain `Dec (API⊑ a₀ a₁)`, we combine this with `DriftSound`, which proves that any drift witness refutes refinement.
+We now have a complete decision procedure for API refinement. Given two well-formed APIs, `API⊑?` either constructs a refinement proof or returns a concrete drift witness explaining the incompatibility.
 
-This gives us the main result: refinement between well-formed APIs is decidable, and every incompatibility has a concrete structural explanation.
+The result type `API⊑ a₀ a₁ ∔ Drift a₀ a₁` gives us both positive evidence (a refinement proof when compatible) and negative evidence (a structural witness explaining exactly what broke when incompatible).
 
-```agda
-API⊑-decidable : ∀ (a₀ a₁ : API) → WFAPI a₀ → WFAPI a₁ → Dec (API⊑ a₀ a₁)
-API⊑-decidable a₀ a₁ wf₀ wf₁
-  with API⊑? a₀ a₁ wf₀ wf₁
-... | inl ok    = yes ok
-... | inr drift = no (DriftSound drift)
-```
+This is the algorithmic core of compatibility checking. In `Semantics.DriftProperties`, we combine this with soundness of drift (`Drift → ¬Refinement`) to obtain the standard `Dec (API⊑ a₀ a₁)` result.
