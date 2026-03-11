@@ -74,20 +74,27 @@ def translate_schema(raw: dict, components: dict) -> Schema:
     # primitive
     if base_type in {"integer", "string", "boolean", "number"}:
         _ensure_only_allowed_schema_fields(raw, {"type", "properties", "required", "items"}, f"Primitive '{base_type}'")
-        _ensure_no_unexpected_schema_fields(
-            raw,
-            {
-                "properties": " on a primitive type",
-                "required": " on a primitive type",
-                "items": " on a primitive type",
-            },
-            f"Primitive '{base_type}'",
-        )
+        properties = []
+        raw_props = raw.get("properties", {})
+        if not isinstance(raw_props, dict):
+            _fail("OBJECT_PROPERTIES_NOT_OBJECT", "'properties' must be an object.")
+        for prop_name, prop_schema in raw_props.items():
+            translated_prop = translate_schema(prop_schema, components)
+            properties.append((prop_name, translated_prop))
+
+        required = raw.get("required", [])
+        if not isinstance(required, list):
+            _fail("OBJECT_REQUIRED_NOT_LIST", "'required' must be a list.")
+
+        translated_items = None
+        if "items" in raw:
+            translated_items = translate_schema(raw["items"], components)
+
         return Schema(
             type=base_type,
-            properties=[],
-            required=[],
-            items=None,
+            properties=properties,
+            required=required,
+            items=translated_items,
             enum=None,
             default=None,
             description=None,
@@ -97,11 +104,6 @@ def translate_schema(raw: dict, components: dict) -> Schema:
     # objects
     if base_type == "object":
         _ensure_only_allowed_schema_fields(raw, {"type", "properties", "required", "items"}, "Object")
-        _ensure_no_unexpected_schema_fields(
-            raw,
-            {"items": " on an object type"},
-            "Object",
-        )
         properties = []
         raw_props = raw.get("properties", {})
 
@@ -116,11 +118,15 @@ def translate_schema(raw: dict, components: dict) -> Schema:
         if not isinstance(required, list):
             _fail("OBJECT_REQUIRED_NOT_LIST", "'required' must be a list.")
 
+        translated_items = None
+        if "items" in raw:
+            translated_items = translate_schema(raw["items"], components)
+
         return Schema(
             type="object",
             properties=properties,
             required=required,
-            items=None,
+            items=translated_items,
             enum=None,
             default=None,
             description=None,
@@ -130,23 +136,26 @@ def translate_schema(raw: dict, components: dict) -> Schema:
     # arrays
     if base_type == "array":
         _ensure_only_allowed_schema_fields(raw, {"type", "items", "properties", "required"}, "Array")
-        _ensure_no_unexpected_schema_fields(
-            raw,
-            {
-                "properties": " on an array type",
-                "required": " on an array type",
-            },
-            "Array",
-        )
-        if "items" not in raw:
-            _fail("ARRAY_MISSING_ITEMS", "Array schema missing 'items'.")
+        translated_items = None
+        if "items" in raw:
+            translated_items = translate_schema(raw["items"], components)
 
-        translated_items = translate_schema(raw["items"], components)
+        properties = []
+        raw_props = raw.get("properties", {})
+        if not isinstance(raw_props, dict):
+            _fail("OBJECT_PROPERTIES_NOT_OBJECT", "'properties' must be an object.")
+        for prop_name, prop_schema in raw_props.items():
+            translated_prop = translate_schema(prop_schema, components)
+            properties.append((prop_name, translated_prop))
+
+        required = raw.get("required", [])
+        if not isinstance(required, list):
+            _fail("OBJECT_REQUIRED_NOT_LIST", "'required' must be a list.")
 
         return Schema(
             type="array",
-            properties=[],
-            required=[],
+            properties=properties,
+            required=required,
             items=translated_items,
             enum=None,
             default=None,
@@ -310,7 +319,7 @@ def translate_api(spec: dict) -> API:
     for path_str, path_item in raw_paths.items():
 
         if "parameters" in path_item:
-            raise TranslationError("Path-level parameters not supported.")
+            _fail("PATH_LEVEL_PARAMETERS_UNSUPPORTED", "Path-level parameters are not supported.", path=path_str)
 
         translated_path = translate_path(path_str)
 

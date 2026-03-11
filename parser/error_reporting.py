@@ -56,6 +56,7 @@ TRANSLATION_ERROR_MESSAGES = {
     "ARRAY_MISSING_ITEMS": "An array schema is missing items.",
     "SCHEMA_UNSUPPORTED_TYPE": "A schema uses an unsupported base type.",
     "PATH_INVALID_FORMAT": "A path string has an invalid format.",
+    "PATH_LEVEL_PARAMETERS_UNSUPPORTED": "Path-level parameters are not supported in this subset.",
     "REQUEST_BODY_MISSING": "An operation requiring a body is missing requestBody.",
     "REQUEST_BODY_MISSING_JSON_CONTENT": "A request body is missing application/json content.",
     "REQUEST_BODY_MISSING_SCHEMA": "A request body is missing its schema.",

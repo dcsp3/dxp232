@@ -16,54 +16,30 @@ def print_schema(schema: Schema) -> str:
     if isinstance(schema, SchemaRef):
         return schema.name
 
-    if schema.type in {"integer", "string", "boolean", "number"}:
-        return (
-            "record { "
-            f"type = {schema.type} ; "
-            "properties = [] ; "
-            "required = [] ; "
-            "items = nothing ; "
-            "enum = nothing ; "
-            "default = nothing ; "
-            "description = nothing ; "
-            "examples = [] }"
-        )
+    props = []
+    for name, sub in schema.properties:
+        prop_str = f'("{name}" , {print_schema(sub)})'
+        props.append(prop_str)
 
-    if schema.type == "object":
-        props = []
-        for name, sub in schema.properties:
-            prop_str = f'("{name}" , {print_schema(sub)})'
-            props.append(prop_str)
+    properties_str = agda_list(props)
+    required_str = agda_list([f'"{r}"' for r in schema.required])
 
-        properties_str = agda_list(props)
-        required_str = agda_list([f'"{r}"' for r in schema.required])
+    if schema.items is None:
+        items_str = "nothing"
+    else:
+        items_str = f"just ({print_schema(schema.items)})"
 
-        return (
-            "record { "
-            "type = object ; "
-            f"properties = {properties_str} ; "
-            f"required = {required_str} ; "
-            "items = nothing ; "
-            "enum = nothing ; "
-            "default = nothing ; "
-            "description = nothing ; "
-            "examples = [] }"
-        )
-
-    if schema.type == "array":
-        return (
-            "record { "
-            "type = array ; "
-            "properties = [] ; "
-            "required = [] ; "
-            f"items = just ({print_schema(schema.items)}) ; "
-            "enum = nothing ; "
-            "default = nothing ; "
-            "description = nothing ; "
-            "examples = [] }"
-        )
-
-    raise ValueError(f"Unsupported schema type: {schema.type}")
+    return (
+        "record { "
+        f"type = {schema.type} ; "
+        f"properties = {properties_str} ; "
+        f"required = {required_str} ; "
+        f"items = {items_str} ; "
+        "enum = nothing ; "
+        "default = nothing ; "
+        "description = nothing ; "
+        "examples = [] }"
+    )
 
 def print_path_segment(seg: PathSegment) -> str:
     if seg.kind == "lit":
