@@ -1,0 +1,46 @@
+openapi: 3.1.0
+info:
+  title: Todo API
+  version: "1.0"
+
+paths:
+  /todos/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    Todo:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+      required:
+        - id
+        - title
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message

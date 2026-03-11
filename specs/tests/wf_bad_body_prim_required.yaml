@@ -1,0 +1,20 @@
+openapi: 3.1.0
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              required:
+                - bogus
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas: {}

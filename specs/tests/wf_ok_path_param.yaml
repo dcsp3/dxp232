@@ -1,0 +1,19 @@
+openapi: 3.1.0
+paths:
+  /items/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas: {}

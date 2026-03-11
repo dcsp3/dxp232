@@ -31,9 +31,6 @@ x ≢ y = ¬ (x ≡ y)
 data Dec (P : Set) : Set where
   yes : P → Dec P
   no  : (¬ P) → Dec P
-
-postulate
-  _≟_ : (x y : String) → Dec (x ≡ y)
 ```
 
 ## Basic data types
@@ -42,6 +39,21 @@ postulate
 data Bool : Set where
   true false : Bool
 
+{-# BUILTIN BOOL  Bool  #-}
+{-# BUILTIN TRUE  true  #-}
+{-# BUILTIN FALSE false #-}
+
+private
+  primitive
+    primStringEquality : String → String → Bool
+
+_≟_ : (x y : String) → Dec (x ≡ y)
+_≟_ x y with primStringEquality x y
+... | true  = yes primTrustMe
+  where postulate primTrustMe : x ≡ y
+... | false = no primTrustMe
+  where postulate primTrustMe : x ≢ y
+  
 true≢false : true ≡ false → ⊥
 true≢false ()
 

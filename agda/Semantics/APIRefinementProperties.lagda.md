@@ -79,7 +79,7 @@ Components⊑-refl
   (uniq::_ k∉tail uniqTail)
   (all::_ wfS wfTail)
   =
-  ( s , (lookupComponent-here , ⊑Co-refl wfS) )
+  ( s , (lookupComponent-here {k} , ⊑Co-refl wfS) )
   , Components⊑-weaken
       k∉tail
       (Components⊑-refl uniqTail wfTail)

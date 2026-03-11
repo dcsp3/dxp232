@@ -1,0 +1,18 @@
+openapi: 3.1.0
+paths:
+  /ping:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas:
+    BadObjectProperty:
+      type: object
+      properties:
+        child:
+          type: array
