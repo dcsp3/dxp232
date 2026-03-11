@@ -90,7 +90,7 @@ def print_endpoint(e: Endpoint) -> str:
         f"responses = {responses_str} }}"
     )
 
-def print_api_module(api: API, module_name: str) -> str:
+def print_api_module(api: API, module_name: str, api_name: str = "GeneratedAPI") -> str:
     lines = []
 
     component_map = {id(schema): name for name, schema in api.components}
@@ -166,9 +166,9 @@ def print_api_module(api: API, module_name: str) -> str:
         [f'("{name}" , {name})' for name, _ in api.components]
     )
 
-    lines.append("GeneratedAPI : API")
+    lines.append(f"{api_name} : API")
     lines.append(
-        f"GeneratedAPI = record {{ paths = {endpoints_str} ; components = {components_str} }}"
+        f"{api_name} = record {{ paths = {endpoints_str} ; components = {components_str} }}"
     )
 
     return "\n".join(lines)
@@ -177,13 +177,16 @@ def print_api_module(api: API, module_name: str) -> str:
 def print_wf_runner_module(
     module_name: str = "Generated.RunWFCheck",
     api_module_name: str = "Generated.GeneratedAPI",
+    api_name: str = "GeneratedAPI",
 ) -> str:
-    return print_wf_runner_module_source(module_name, api_module_name)
+    return print_wf_runner_module_source(module_name, api_module_name, api_name)
 
 
 def print_compat_runner_module(
     module_name: str = "Generated.RunCompatCheck",
     old_api_module_name: str = "Generated.GeneratedOldAPI",
     new_api_module_name: str = "Generated.GeneratedNewAPI",
+    old_api_name: str = "OldAPI",
+    new_api_name: str = "NewAPI",
 ) -> str:
-    return print_compat_runner_module_source(module_name, old_api_module_name, new_api_module_name)
+    return print_compat_runner_module_source(module_name, old_api_module_name, new_api_module_name, old_api_name, new_api_name)

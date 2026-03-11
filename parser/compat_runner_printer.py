@@ -2,6 +2,8 @@ def print_compat_runner_module_source(
     module_name: str = "Generated.RunCompatCheck",
     old_api_module_name: str = "Generated.GeneratedOldAPI",
     new_api_module_name: str = "Generated.GeneratedNewAPI",
+    old_api_name: str = "OldAPI",
+    new_api_name: str = "NewAPI",
 ) -> str:
     lines = [
         f"module {module_name} where",
@@ -19,17 +21,17 @@ def print_compat_runner_module_source(
         "open import Semantics.DecidableRefinement",
         "open import Semantics.Drift",
         "",
-        "oldWF : WFAPI GeneratedAPI ∔ APIIllFormed GeneratedAPI",
-        "oldWF = WFAPI? GeneratedAPI",
+        f"oldWF : WFAPI {old_api_name} ∔ APIIllFormed {old_api_name}",
+        f"oldWF = WFAPI? {old_api_name}",
         "",
-        "newWF : WFAPI GeneratedAPI ∔ APIIllFormed GeneratedAPI",
-        "newWF = WFAPI? GeneratedAPI",
+        f"newWF : WFAPI {new_api_name} ∔ APIIllFormed {new_api_name}",
+        f"newWF = WFAPI? {new_api_name}",
         "",
         "compatTag : String",
         "compatTag with oldWF | newWF",
         "... | inr _ | _ = \"COMPAT_CHECK_ERROR:OLD_SPEC_NOT_WF\"",
         "... | _ | inr _ = \"COMPAT_CHECK_ERROR:NEW_SPEC_NOT_WF\"",
-        "... | inl wfOld | inl wfNew with API⊑? GeneratedAPI GeneratedAPI wfOld wfNew",
+        f"... | inl wfOld | inl wfNew with API⊑? {old_api_name} {new_api_name} wfOld wfNew",
         "... | inl _ = \"COMPAT_OK\"",
         "... | inr (ComponentRemoved _ _) = \"COMPAT_ERR:COMPONENT_REMOVED\"",
         "... | inr (ComponentDriftWitness _ _ _) = \"COMPAT_ERR:COMPONENT_DRIFT\"",
@@ -46,15 +48,5 @@ def print_compat_runner_module_source(
     ]
 
     source = "\n".join(lines)
-
-    # The old/new generated API modules both define GeneratedAPI.
-    # Rename references in imported modules by editing module qualifiers.
-    source = source.replace("open import " + old_api_module_name, "open import " + old_api_module_name + " renaming (GeneratedAPI to OldAPI)")
-    source = source.replace("open import " + new_api_module_name, "open import " + new_api_module_name + " renaming (GeneratedAPI to NewAPI)")
-    source = source.replace("oldWF : WFAPI GeneratedAPI ∔ APIIllFormed GeneratedAPI", "oldWF : WFAPI OldAPI ∔ APIIllFormed OldAPI")
-    source = source.replace("oldWF = WFAPI? GeneratedAPI", "oldWF = WFAPI? OldAPI")
-    source = source.replace("newWF : WFAPI GeneratedAPI ∔ APIIllFormed GeneratedAPI", "newWF : WFAPI NewAPI ∔ APIIllFormed NewAPI")
-    source = source.replace("newWF = WFAPI? GeneratedAPI", "newWF = WFAPI? NewAPI")
-    source = source.replace("API⊑? GeneratedAPI GeneratedAPI", "API⊑? OldAPI NewAPI")
 
     return source

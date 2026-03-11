@@ -38,7 +38,7 @@ def to_agda_identifier(raw: str) -> str:
     return "".join(pascal_parts)
 
 
-def generate_agda_files(spec_path: str, repo_root: Path, module_suffix: str = "") -> tuple[Path, Path]:
+def generate_agda_files(spec_path: str, repo_root: Path, module_suffix: str = "", api_name: str = "GeneratedAPI") -> tuple[Path, Path]:
     candidate = Path(spec_path)
     if not candidate.is_absolute() and not candidate.exists():
         candidate = repo_root / candidate
@@ -54,8 +54,8 @@ def generate_agda_files(spec_path: str, repo_root: Path, module_suffix: str = ""
     api_module_name = f"Generated.{spec_base}API"
     runner_module_name = f"Generated.{spec_base}RunWFCheck"
 
-    generated_api_code = print_api_module(api, api_module_name)
-    wf_runner_code = print_wf_runner_module(runner_module_name, api_module_name)
+    generated_api_code = print_api_module(api, api_module_name, api_name)
+    wf_runner_code = print_wf_runner_module(runner_module_name, api_module_name, api_name)
 
     generated_dir = repo_root / "agda" / "Generated"
     generated_dir.mkdir(parents=True, exist_ok=True)
@@ -202,8 +202,8 @@ def main():
     try:
         repo_root = Path(__file__).resolve().parent.parent
         if mode == "check-compat":
-            old_api_path, old_wf_runner_path = generate_agda_files(old_path, repo_root, "Old")
-            new_api_path, new_wf_runner_path = generate_agda_files(new_path, repo_root, "New")
+            old_api_path, old_wf_runner_path = generate_agda_files(old_path, repo_root, "Old", "OldAPI")
+            new_api_path, new_wf_runner_path = generate_agda_files(new_path, repo_root, "New", "NewAPI")
             compat_runner_path = generate_compat_runner(old_api_path, new_api_path, repo_root)
 
             try:
