@@ -1,5 +1,6 @@
 from dsl_ast import  Schema, SchemaRef, Path, PathSegment, Endpoint, Response, Parameter, Body, API
 from wf_runner_printer import print_wf_runner_module_source
+from compat_runner_printer import print_compat_runner_module_source
 
 
 def agda_list(items: list[str]) -> str:
@@ -178,3 +179,11 @@ def print_wf_runner_module(
     api_module_name: str = "Generated.GeneratedAPI",
 ) -> str:
     return print_wf_runner_module_source(module_name, api_module_name)
+
+
+def print_compat_runner_module(
+    module_name: str = "Generated.RunCompatCheck",
+    old_api_module_name: str = "Generated.GeneratedOldAPI",
+    new_api_module_name: str = "Generated.GeneratedNewAPI",
+) -> str:
+    return print_compat_runner_module_source(module_name, old_api_module_name, new_api_module_name)

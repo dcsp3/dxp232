@@ -73,6 +73,14 @@ TRANSLATION_ERROR_MESSAGES = {
 }
 
 
+COMPAT_ERROR_MESSAGES = {
+    "COMPONENT_REMOVED": "A component required by the old API is missing in the new API.",
+    "COMPONENT_DRIFT": "A shared component changed incompatibly.",
+    "ENDPOINT_REMOVED": "An endpoint present in the old API is missing in the new API.",
+    "ENDPOINT_DRIFT": "A shared endpoint changed incompatibly.",
+}
+
+
 def format_context_parts(*pairs: tuple[str, str]) -> str:
     parts = []
     for key, value in pairs:

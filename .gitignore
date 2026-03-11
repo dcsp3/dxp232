@@ -12,6 +12,8 @@ agda/Generated/*API.agda
 agda/Generated/*API.agdai
 agda/Generated/*RunWFCheck.agda
 agda/Generated/*RunWFCheck.agdai
+agda/Generated/*RunCompatCheck.agda
+agda/Generated/*RunCompatCheck.agdai
 
 # Python cache
 __pycache__/

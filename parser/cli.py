@@ -4,12 +4,13 @@ import sys
 from pathlib import Path
 
 from error_reporting import (
+    COMPAT_ERROR_MESSAGES,
     TRANSLATION_ERROR_MESSAGES,
     WF_ERROR_MESSAGES,
     format_context_parts,
 )
 from loader import OpenAPILoadError, basic_openapi_sanity_check, load_spec
-from printer import print_api_module, print_wf_runner_module
+from printer import print_api_module, print_compat_runner_module, print_wf_runner_module
 from translate import TranslationError, translate_api
 
 
@@ -17,6 +18,7 @@ def print_usage() -> None:
     print("Usage:")
     print("  python cli.py <openapi.yaml>")
     print("  python cli.py check-wf <openapi.yaml>")
+    print("  python cli.py check-compat <old-openapi.yaml> <new-openapi.yaml>")
 
 
 def to_agda_identifier(raw: str) -> str:
@@ -36,7 +38,7 @@ def to_agda_identifier(raw: str) -> str:
     return "".join(pascal_parts)
 
 
-def generate_agda_files(spec_path: str, repo_root: Path) -> tuple[Path, Path]:
+def generate_agda_files(spec_path: str, repo_root: Path, module_suffix: str = "") -> tuple[Path, Path]:
     candidate = Path(spec_path)
     if not candidate.is_absolute() and not candidate.exists():
         candidate = repo_root / candidate
@@ -47,6 +49,8 @@ def generate_agda_files(spec_path: str, repo_root: Path) -> tuple[Path, Path]:
     api = translate_api(spec)
 
     spec_base = to_agda_identifier(candidate.stem)
+    if module_suffix:
+        spec_base = f"{spec_base}{module_suffix}"
     api_module_name = f"Generated.{spec_base}API"
     runner_module_name = f"Generated.{spec_base}RunWFCheck"
 
@@ -63,6 +67,28 @@ def generate_agda_files(spec_path: str, repo_root: Path) -> tuple[Path, Path]:
     runner_path.write_text(wf_runner_code, encoding="utf-8")
 
     return api_path, runner_path
+
+
+def generate_compat_runner(
+    old_api_path: Path,
+    new_api_path: Path,
+    repo_root: Path,
+) -> Path:
+    old_module = f"Generated.{old_api_path.stem}"
+    new_module = f"Generated.{new_api_path.stem}"
+    runner_module_name = f"Generated.{old_api_path.stem}Vs{new_api_path.stem}RunCompatCheck"
+
+    compat_runner_code = print_compat_runner_module(
+        runner_module_name,
+        old_module,
+        new_module,
+    )
+
+    generated_dir = repo_root / "agda" / "Generated"
+    generated_dir.mkdir(parents=True, exist_ok=True)
+    runner_path = generated_dir / f"{old_api_path.stem}Vs{new_api_path.stem}RunCompatCheck.agda"
+    runner_path.write_text(compat_runner_code, encoding="utf-8")
+    return runner_path
 
 
 def run_agda_typecheck(agda_dir: Path, module_path: Path) -> tuple[bool, str]:
@@ -151,24 +177,110 @@ def parse_runner_output(output: str) -> tuple[str, str, str, str, str]:
 
 
 def main():
-    if len(sys.argv) not in {2, 3}:
+    if len(sys.argv) not in {2, 3, 4}:
         print_usage()
         sys.exit(1)
 
     mode = "generate"
     path = ""
+    old_path = ""
+    new_path = ""
 
     if len(sys.argv) == 2:
         path = sys.argv[1]
     elif len(sys.argv) == 3 and sys.argv[1] == "check-wf":
         mode = "check-wf"
         path = sys.argv[2]
+    elif len(sys.argv) == 4 and sys.argv[1] == "check-compat":
+        mode = "check-compat"
+        old_path = sys.argv[2]
+        new_path = sys.argv[3]
     else:
         print_usage()
         sys.exit(1)
 
     try:
         repo_root = Path(__file__).resolve().parent.parent
+        if mode == "check-compat":
+            old_api_path, old_wf_runner_path = generate_agda_files(old_path, repo_root, "Old")
+            new_api_path, new_wf_runner_path = generate_agda_files(new_path, repo_root, "New")
+            compat_runner_path = generate_compat_runner(old_api_path, new_api_path, repo_root)
+
+            try:
+                print(f"Generated {old_api_path.relative_to(repo_root).as_posix()}")
+                print(f"Generated {new_api_path.relative_to(repo_root).as_posix()}")
+                print(f"Generated {compat_runner_path.relative_to(repo_root).as_posix()}")
+            except ValueError:
+                print(f"Generated {old_api_path}")
+                print(f"Generated {new_api_path}")
+                print(f"Generated {compat_runner_path}")
+
+            agda_dir = repo_root / "agda"
+
+            print("WF_CHECK: old spec")
+
+            old_ok, old_stage, old_output = run_agda_compile_and_execute(agda_dir, old_wf_runner_path)
+            if not old_ok:
+                print(f"COMPAT_CHECK_ERROR:OLD_SPEC_WF_AGDA_{old_stage}")
+                if old_output:
+                    print("DETAILS_START")
+                    print(old_output)
+                    print("DETAILS_END")
+                sys.exit(3)
+
+            old_tag, _, _, _, _ = parse_runner_output(old_output)
+            if old_tag != "WF_OK":
+                print("COMPAT_CHECK_ERROR:OLD_SPEC_NOT_WF")
+                print(f"DETAIL: old spec WF result was '{old_tag}'")
+                sys.exit(3)
+
+            print("WF_OK: old spec")
+            print("WF_CHECK: new spec")
+
+            new_ok, new_stage, new_output = run_agda_compile_and_execute(agda_dir, new_wf_runner_path)
+            if not new_ok:
+                print(f"COMPAT_CHECK_ERROR:NEW_SPEC_WF_AGDA_{new_stage}")
+                if new_output:
+                    print("DETAILS_START")
+                    print(new_output)
+                    print("DETAILS_END")
+                sys.exit(3)
+
+            new_tag, _, _, _, _ = parse_runner_output(new_output)
+            if new_tag != "WF_OK":
+                print("COMPAT_CHECK_ERROR:NEW_SPEC_NOT_WF")
+                print(f"DETAIL: new spec WF result was '{new_tag}'")
+                sys.exit(3)
+
+            print("WF_OK: new spec")
+            print("COMPAT_CHECK: old -> new")
+
+            compat_ok, compat_stage, compat_output = run_agda_compile_and_execute(agda_dir, compat_runner_path)
+            if not compat_ok:
+                print(f"COMPAT_CHECK_ERROR:AGDA_{compat_stage}")
+                if compat_output:
+                    print("DETAILS_START")
+                    print(compat_output)
+                    print("DETAILS_END")
+                sys.exit(3)
+
+            compat_tag, _, _, _, _ = parse_runner_output(compat_output)
+            if compat_tag == "COMPAT_OK":
+                print("COMPAT_OK")
+                sys.exit(0)
+            if compat_tag.startswith("COMPAT_ERR:"):
+                compat_key = compat_tag.split(":", 1)[1].strip()
+                print(compat_tag)
+                compat_message = COMPAT_ERROR_MESSAGES.get(compat_key)
+                if compat_message:
+                    print(f"DETAIL: {compat_message}")
+                sys.exit(1)
+
+            print("COMPAT_CHECK_ERROR:UNEXPECTED_RUNNER_OUTPUT")
+            if compat_output:
+                print(f"DETAIL: {compat_output}")
+            sys.exit(3)
+
         output_path, wf_runner_path = generate_agda_files(path, repo_root)
 
         try:
