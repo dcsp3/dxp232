@@ -111,7 +111,7 @@ mutual
 
   -- Property missing in new schema
   ... | nothing =
-        inr (MissingProperty k (λ contra → just≢nothing (trans (sym lookupProp-here) contra)) eq)
+        inr (MissingProperty k (λ contra → just≢nothing (trans (sym (lookupProp-here {k})) contra)) eq)
 
   -- Property exists
   ... | just t
@@ -119,7 +119,7 @@ mutual
     
   -- Nested schema drift
   ... | inr d =
-        inr (NestedDrift k s t lookupProp-here eq d)
+        inr (NestedDrift k s t (lookupProp-here {k}) eq d)
 
   -- Nested refinement succeeds → recurse
   ... | inl r
@@ -865,12 +865,12 @@ Components⊑? ((k , s) :: cs) new (uniq::_ k∉ uniqRest) (all::_ wfS wfRest) w
   with lookupComponent k new in lkeq
 ... | nothing =
       inr (ComponentRemoved' k
-            (λ contra → just≢nothing (trans (sym lookupComponent-here) contra))
+            (λ contra → just≢nothing (trans (sym (lookupComponent-here {k})) contra))
             lkeq)
 ... | just t
   with Schema⊑Co? wfS (lookupComponent-wf wfNew lkeq)
   | Components⊑? cs new uniqRest wfRest wfNew
-... | inr d  | _        = inr (ComponentDrift' k s t lookupComponent-here lkeq d)
+... | inr d  | _        = inr (ComponentDrift' k s t (lookupComponent-here {k}) lkeq d)
 ... | inl _  | inr fail = inr (liftComponentFailure k∉ fail)
 ... | inl ok | inl rest = inl ((t , (refl , ok)) , rest)
 ```

@@ -162,7 +162,7 @@ PropsRefine-tail
   where
     -- Lookup k' in ((k , sch) :: (k' , sch') :: ps') succeeds at the second position
     lkHead : lookupProp k' ((k , sch) :: (k' , sch') :: ps') ≡ just sch'
-    lkHead = trans (lookupProp-skip (λ e → k≢k' (sym e))) lookupProp-here
+    lkHead = trans (lookupProp-skip (λ e → k≢k' (sym e))) (lookupProp-here {k = k'})
 ```
 
 ```agda
@@ -179,7 +179,7 @@ PropsRefine-refl
   (uniq::_ k∉tail uniqTail)
   (all::_ wfSch wfTail)
   =
-    (sch , (lookupProp-here , ⊑Co-refl wfSch))
+    (sch , (lookupProp-here {k} , ⊑Co-refl wfSch))
   , PropsRefine-tail
       {k = k} {sch = sch} {ps = ps'}
       wfSch uniqTail k∉tail wfTail
