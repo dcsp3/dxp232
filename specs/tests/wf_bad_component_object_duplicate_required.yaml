@@ -1,0 +1,21 @@
+openapi: 3.1.0
+paths:
+  /ping:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas:
+    BadObjectDupRequired:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
+        - name

@@ -1,0 +1,19 @@
+openapi: 3.1.0
+paths:
+  /todos/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas: {}
