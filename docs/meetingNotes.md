@@ -125,3 +125,30 @@ No meeting
 - Pitched the idea of having a UI for users to compare APIs easily, with the backend linking to our formal Agda model
 
 ---
+
+## Week 6 (24/2)
+
+- Completed the drift development for the current semantics layer
+- Identified the next key theorem: **drift soundness**, i.e. proving that a concrete drift witness refutes refinement/compatibility
+- Next action: formalise and prove the statement that drift implies non-refinement in a reusable form for later decidable checks
+
+---
+
+## Week 7 (3/3)
+
+- Progress update on decidable refinement and the executable checking direction
+- Discussed practical workflow options for compatibility evidence:
+  - state compatibility explicitly, run the decision procedure, then reuse the resulting witness/proof
+  - or directly call the decidable compatibility function and use the result as the primary check
+- Concluded that the second approach (calling the decidable function directly) is cleaner for tooling and future automation
+
+---
+
+## Week 8 (10/3)
+
+- Discussed progress on the well-formedness proof/check layer, including the need for a clean function-shaped entry point for execution
+- Aligned this with the broader runnable pipeline direction so formal checks are easy to trigger from the parser/tooling side
+- Organised inspection meeting timing in week 10
+- Need to add WF checking flow in the parsing layer first and then move to compatibility as the next implementation phase
+
+---
