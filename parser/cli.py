@@ -1,11 +1,16 @@
-import sys
-import subprocess
 import re
+import subprocess
+import sys
 from pathlib import Path
 
-from loader import load_spec, basic_openapi_sanity_check, OpenAPILoadError
-from translate import translate_api, TranslationError
+from error_reporting import (
+    TRANSLATION_ERROR_MESSAGES,
+    WF_ERROR_MESSAGES,
+    format_context_parts,
+)
+from loader import OpenAPILoadError, basic_openapi_sanity_check, load_spec
 from printer import print_api_module, print_wf_runner_module
+from translate import TranslationError, translate_api
 
 
 def print_usage() -> None:
@@ -16,7 +21,7 @@ def print_usage() -> None:
 
 def to_agda_identifier(raw: str) -> str:
     parts = re.split(r"[^A-Za-z0-9]+", raw)
-    parts = [p for p in parts if p]
+    parts = [part for part in parts if part]
     if not parts:
         return "Spec"
 
@@ -25,8 +30,8 @@ def to_agda_identifier(raw: str) -> str:
         head = f"Spec{head}"
 
     pascal_parts = [head[:1].upper() + head[1:]]
-    for p in parts[1:]:
-        pascal_parts.append(p[:1].upper() + p[1:])
+    for part in parts[1:]:
+        pascal_parts.append(part[:1].upper() + part[1:])
 
     return "".join(pascal_parts)
 
@@ -132,6 +137,19 @@ def run_agda_compile_and_execute(agda_dir: Path, module_path: Path) -> tuple[boo
     return True, "", output
 
 
+def parse_runner_output(output: str) -> tuple[str, str, str, str, str]:
+    lines = [line.strip() for line in output.splitlines()]
+    if not lines:
+        return "", "", "", "", ""
+
+    tag = lines[0]
+    key1 = lines[1] if len(lines) > 1 else ""
+    value1 = lines[2] if len(lines) > 2 else ""
+    key2 = lines[3] if len(lines) > 3 else ""
+    value2 = lines[4] if len(lines) > 4 else ""
+    return tag, key1, value1, key2, value2
+
+
 def main():
     if len(sys.argv) not in {2, 3}:
         print_usage()
@@ -171,10 +189,19 @@ def main():
                     print("DETAILS_END")
                 sys.exit(3)
 
-            if output == "WF_OK":
+            tag, key1, value1, key2, value2 = parse_runner_output(output)
+
+            if tag == "WF_OK":
                 print("WF_OK")
-            elif output == "WF_ERR":
-                print("WF_ERR")
+            elif tag.startswith("WF_ERR:"):
+                key = tag.split(":", 1)[1].strip()
+                print(tag)
+                message = WF_ERROR_MESSAGES.get(key)
+                if message:
+                    print(f"DETAIL: {message}")
+                context_line = format_context_parts((key1, value1), (key2, value2))
+                if context_line:
+                    print(f"CONTEXT: {context_line}")
                 sys.exit(1)
             else:
                 print("WF_CHECK_ERROR:UNEXPECTED_RUNNER_OUTPUT")
@@ -182,9 +209,22 @@ def main():
                     print(f"DETAIL: {output}")
                 sys.exit(3)
 
-    except (OpenAPILoadError, TranslationError) as e:
+    except OpenAPILoadError as error:
         print("WF_CHECK_ERROR:PARSE_OR_TRANSLATION_FAILED")
-        print(f"DETAIL: {e}")
+        print(f"DETAIL: {error}")
+        sys.exit(2)
+    except TranslationError as error:
+        print(f"TRANSLATION_ERR:{error.code}")
+        message = TRANSLATION_ERROR_MESSAGES.get(error.code)
+        if message:
+            print(f"DETAIL: {message}")
+        print(f"CAUSE: {error.detail}")
+        context_items = list(error.context.items())
+        first = context_items[0] if len(context_items) > 0 else ("", "")
+        second = context_items[1] if len(context_items) > 1 else ("", "")
+        context_line = format_context_parts(first, second)
+        if context_line:
+            print(f"CONTEXT: {context_line}")
         sys.exit(2)
 
 

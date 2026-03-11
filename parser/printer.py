@@ -1,4 +1,5 @@
 from dsl_ast import  Schema, SchemaRef, Path, PathSegment, Endpoint, Response, Parameter, Body, API
+from wf_runner_printer import print_wf_runner_module_source
 
 
 def agda_list(items: list[str]) -> str:
@@ -200,33 +201,4 @@ def print_wf_runner_module(
     module_name: str = "Generated.RunWFCheck",
     api_module_name: str = "Generated.GeneratedAPI",
 ) -> str:
-    lines = []
-
-    lines.append(f"module {module_name} where")
-    lines.append("")
-    lines.append("open import Agda.Builtin.IO")
-    lines.append("import Agda.Builtin.Unit as Unit")
-    lines.append("")
-    lines.append("open import Prelude using (String; _∔_; inl; inr)")
-    lines.append(f"open import {api_module_name}")
-    lines.append("open import WellFormed.Core")
-    lines.append("open import WellFormed.Decidable")
-    lines.append("open import WellFormed.IllFormed")
-    lines.append("")
-    lines.append("wfResult : WFAPI GeneratedAPI ∔ APIIllFormed GeneratedAPI")
-    lines.append("wfResult = WFAPI? GeneratedAPI")
-    lines.append("")
-    lines.append("resultTag : String")
-    lines.append("resultTag with wfResult")
-    lines.append("... | inl _ = \"WF_OK\"")
-    lines.append("... | inr _ = \"WF_ERR\"")
-    lines.append("")
-    lines.append("postulate")
-    lines.append("  putStrLn : String → IO Unit.⊤")
-    lines.append("{-# FOREIGN GHC import qualified Data.Text.IO as T #-}")
-    lines.append("{-# COMPILE GHC putStrLn = \\s -> T.putStrLn s >> return () #-}")
-    lines.append("")
-    lines.append("main : IO Unit.⊤")
-    lines.append("main = putStrLn resultTag")
-
-    return "\n".join(lines)
+    return print_wf_runner_module_source(module_name, api_module_name)

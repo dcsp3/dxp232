@@ -10,30 +10,79 @@ STATUS_MAP = {
 ALLOWED_METHODS = {"get", "post", "put", "delete", "patch"}
 
 class TranslationError(Exception):
-    pass
+    def __init__(self, code: str, detail: str, context: dict[str, str] | None = None):
+        super().__init__(detail)
+        self.code = code
+        self.detail = detail
+        self.context = context or {}
+
+
+def _fail(code: str, detail: str, **context: str) -> None:
+    raise TranslationError(code, detail, context)
+
+
+def _ensure_only_allowed_schema_fields(raw: dict, allowed: set[str], schema_kind: str) -> None:
+    for field_name in raw:
+        if field_name not in allowed:
+            _fail(
+                "SCHEMA_UNKNOWN_FIELD",
+                f"{schema_kind} schema uses unsupported field '{field_name}'.",
+                schema_kind=schema_kind,
+                field=field_name,
+            )
+
+
+def _ensure_no_unexpected_schema_fields(raw: dict, forbidden: dict[str, str], schema_kind: str) -> None:
+    for field_name, reason in forbidden.items():
+        if field_name in raw:
+            _fail(
+                "SCHEMA_UNEXPECTED_FIELD",
+                f"{schema_kind} schema cannot define '{field_name}'{reason}.",
+                schema_kind=schema_kind,
+                field=field_name,
+            )
+
 
 def translate_schema(raw: dict, components: dict) -> Schema:
     if not isinstance(raw, dict):
-        raise TranslationError("Schema must be an object.")
-    
+        _fail("SCHEMA_NOT_OBJECT", "Schema must be an object.")
+
     # resolve $ref
     if "$ref" in raw:
+        _ensure_only_allowed_schema_fields(raw, {"$ref"}, "Ref")
         ref_value = raw["$ref"]
 
         if not ref_value.startswith("#/components/schemas/"):
-            raise TranslationError(f"Unsupported $ref format: {ref_value}")
+            _fail("REF_UNSUPPORTED_FORMAT", f"Unsupported $ref format: {ref_value}", ref=ref_value)
 
         schema_name = ref_value.split("/")[-1]
 
         if schema_name not in components:
-            raise TranslationError(f"Referenced schema '{schema_name}' not found.")
+            _fail(
+                "REF_SCHEMA_NOT_FOUND",
+                f"Referenced schema '{schema_name}' not found.",
+                schema=schema_name,
+            )
 
         return SchemaRef(schema_name)
+
+    if "type" not in raw:
+        _fail("SCHEMA_MISSING_TYPE", "Schema missing 'type'.")
 
     base_type = raw["type"]
 
     # primitive
     if base_type in {"integer", "string", "boolean", "number"}:
+        _ensure_only_allowed_schema_fields(raw, {"type", "properties", "required", "items"}, f"Primitive '{base_type}'")
+        _ensure_no_unexpected_schema_fields(
+            raw,
+            {
+                "properties": " on a primitive type",
+                "required": " on a primitive type",
+                "items": " on a primitive type",
+            },
+            f"Primitive '{base_type}'",
+        )
         return Schema(
             type=base_type,
             properties=[],
@@ -47,11 +96,17 @@ def translate_schema(raw: dict, components: dict) -> Schema:
 
     # objects
     if base_type == "object":
+        _ensure_only_allowed_schema_fields(raw, {"type", "properties", "required", "items"}, "Object")
+        _ensure_no_unexpected_schema_fields(
+            raw,
+            {"items": " on an object type"},
+            "Object",
+        )
         properties = []
         raw_props = raw.get("properties", {})
 
         if not isinstance(raw_props, dict):
-            raise TranslationError("'properties' must be an object.")
+            _fail("OBJECT_PROPERTIES_NOT_OBJECT", "'properties' must be an object.")
 
         for prop_name, prop_schema in raw_props.items():
             translated_prop = translate_schema(prop_schema, components)
@@ -59,7 +114,7 @@ def translate_schema(raw: dict, components: dict) -> Schema:
 
         required = raw.get("required", [])
         if not isinstance(required, list):
-            raise TranslationError("'required' must be a list.")
+            _fail("OBJECT_REQUIRED_NOT_LIST", "'required' must be a list.")
 
         return Schema(
             type="object",
@@ -71,11 +126,20 @@ def translate_schema(raw: dict, components: dict) -> Schema:
             description=None,
             examples=[],
         )
-    
+
     # arrays
     if base_type == "array":
+        _ensure_only_allowed_schema_fields(raw, {"type", "items", "properties", "required"}, "Array")
+        _ensure_no_unexpected_schema_fields(
+            raw,
+            {
+                "properties": " on an array type",
+                "required": " on an array type",
+            },
+            "Array",
+        )
         if "items" not in raw:
-            raise TranslationError("Array schema missing 'items'.")
+            _fail("ARRAY_MISSING_ITEMS", "Array schema missing 'items'.")
 
         translated_items = translate_schema(raw["items"], components)
 
@@ -90,13 +154,12 @@ def translate_schema(raw: dict, components: dict) -> Schema:
             examples=[],
         )
 
-    raise TranslationError(
-        f"Base type '{base_type}' not supported yet"
-    )
+    _fail("SCHEMA_UNSUPPORTED_TYPE", f"Base type '{base_type}' not supported yet", type=base_type)
+
 
 def translate_path(path_str: str) -> Path:
     if not path_str.startswith("/"):
-        raise TranslationError(f"Invalid path format: {path_str}")
+        _fail("PATH_INVALID_FORMAT", f"Invalid path format: {path_str}", path=path_str)
 
     segments = []
 
@@ -116,7 +179,7 @@ def translate_request_body(method: str, operation: dict, components: dict) -> Bo
         return default_body_for_method(method)
 
     if "requestBody" not in operation:
-        raise TranslationError(f"{method} operation missing requestBody.")
+        _fail("REQUEST_BODY_MISSING", f"{method} operation missing requestBody.", method=method)
 
     request_body = operation["requestBody"]
 
@@ -124,14 +187,14 @@ def translate_request_body(method: str, operation: dict, components: dict) -> Bo
     json_content = content.get("application/json")
 
     if json_content is None:
-        raise TranslationError(
-            f"{method} requestBody missing application/json content."
+        _fail(
+            "REQUEST_BODY_MISSING_JSON_CONTENT",
+            f"{method} requestBody missing application/json content.",
+            method=method,
         )
 
     if "schema" not in json_content:
-        raise TranslationError(
-            f"{method} requestBody missing schema."
-        )
+        _fail("REQUEST_BODY_MISSING_SCHEMA", f"{method} requestBody missing schema.", method=method)
 
     raw_schema = json_content["schema"]
     translated_schema = translate_schema(raw_schema, components)
@@ -143,11 +206,11 @@ def translate_request_body(method: str, operation: dict, components: dict) -> Bo
     if method == "PATCH":
         return Body(kind="HasBodyP", schema=translated_schema)
 
-    raise TranslationError(f"Unsupported method for body: {method}")
+    _fail("BODY_UNSUPPORTED_METHOD", f"Unsupported method for body: {method}", method=method)
 
 def translate_method(method_str: str) -> str:
     if method_str.lower() not in ALLOWED_METHODS:
-        raise TranslationError(f"Unsupported HTTP method: {method_str}")
+        _fail("METHOD_UNSUPPORTED", f"Unsupported HTTP method: {method_str}", method=method_str)
 
     return method_str.upper()
 
@@ -163,7 +226,7 @@ def default_body_for_method(method: str) -> Body:
     if method == "PATCH":
         return Body(kind="HasBodyP", schema=None)
 
-    raise TranslationError(f"Unsupported method for body: {method}")
+    _fail("BODY_UNSUPPORTED_METHOD", f"Unsupported method for body: {method}", method=method)
 
 def translate_parameter(raw_param: dict) -> Parameter:
     name = raw_param.get("name")
@@ -171,28 +234,24 @@ def translate_parameter(raw_param: dict) -> Parameter:
     required = raw_param.get("required", False)
 
     if location not in {"path", "query"}:
-        raise TranslationError(f"Unsupported parameter location: {location}")
+        _fail("PARAMETER_UNSUPPORTED_LOCATION", f"Unsupported parameter location: {location}", parameter=name or "", location=str(location))
 
     if "schema" not in raw_param:
-        raise TranslationError(f"Parameter '{name}' missing schema.")
+        _fail("PARAMETER_MISSING_SCHEMA", f"Parameter '{name}' missing schema.", parameter=name or "")
 
     schema_obj = raw_param["schema"]
 
     if "type" not in schema_obj:
-        raise TranslationError(f"Parameter '{name}' schema missing type.")
+        _fail("PARAMETER_SCHEMA_MISSING_TYPE", f"Parameter '{name}' schema missing type.", parameter=name or "")
 
     base_type = schema_obj["type"]
 
     if base_type not in {"integer", "string", "boolean", "number"}:
-        raise TranslationError(
-            f"Parameter '{name}' must have primitive type."
-        )
+        _fail("PARAMETER_NON_PRIMITIVE", f"Parameter '{name}' must have primitive type.", parameter=name or "", type=str(base_type))
 
     # path params must be required
     if location == "path" and not required:
-        raise TranslationError(
-            f"Path parameter '{name}' must be required."
-        )
+        _fail("PATH_PARAMETER_NOT_REQUIRED", f"Path parameter '{name}' must be required.", parameter=name or "")
 
     return Parameter(
         name=name,
@@ -207,9 +266,7 @@ def translate_responses(raw_responses: dict, components: dict) -> list[Response]
     for status_code, response_obj in raw_responses.items():
 
         if status_code not in STATUS_MAP:
-            raise TranslationError(
-                f"Unsupported status code: {status_code}"
-            )
+            _fail("STATUS_UNSUPPORTED", f"Unsupported status code: {status_code}", status=status_code)
 
         dsl_status = STATUS_MAP[status_code]
 
@@ -217,14 +274,14 @@ def translate_responses(raw_responses: dict, components: dict) -> list[Response]
         json_content = content.get("application/json")
 
         if json_content is None:
-            raise TranslationError(
-                f"Response {status_code} missing application/json content."
+            _fail(
+                "RESPONSE_MISSING_JSON_CONTENT",
+                f"Response {status_code} missing application/json content.",
+                status=status_code,
             )
 
         if "schema" not in json_content:
-            raise TranslationError(
-                f"Response {status_code} missing schema."
-            )
+            _fail("RESPONSE_MISSING_SCHEMA", f"Response {status_code} missing schema.", status=status_code)
 
         raw_schema = json_content["schema"]
 
