@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 ROOT_TESTS_DIR = Path(__file__).parent.parent / "specs" / "tests"
+WF_TESTS_DIR = ROOT_TESTS_DIR / "wf"
 COMPAT_TESTS_DIR = ROOT_TESTS_DIR / "compat"
 CLI = Path(__file__).parent / "cli.py"
 
@@ -72,9 +73,9 @@ TESTS = [
 
 
 def resolve_test_path(filename: str) -> Path:
-    root_candidate = ROOT_TESTS_DIR / filename
-    if root_candidate.exists():
-        return root_candidate
+    wf_candidate = WF_TESTS_DIR / filename
+    if wf_candidate.exists():
+        return wf_candidate
     return COMPAT_TESTS_DIR / filename
 
 

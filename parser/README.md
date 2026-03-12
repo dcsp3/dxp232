@@ -1,31 +1,35 @@
 # Parser Pipeline Overview
 
-This folder contains the Python orchestration layer for parsing OpenAPI input, generating Agda code, and executing formal checks.
+This folder contains the Python orchestration layer for:
 
-## Well-Formedness (WF)
+- loading a constrained OpenAPI subset from YAML
+- translating it into the internal DSL
+- generating Agda modules
+- executing well-formedness and compatibility checks
+- formatting stable CLI diagnostics
 
-Everything currently implemented in this folder is centered on WF checking.
+Python is the orchestration layer. Agda is the decision layer for WF and compatibility.
 
-### High-Level Flow
+## High-Level Flow
 
 Input:
 - OpenAPI YAML
 
-WF pipeline:
+Shared pipeline:
 1. Load YAML and run basic top-level sanity checks.
-2. Translate OpenAPI subset into internal DSL dataclasses.
-3. Generate Agda API module from the translated DSL.
-4. Generate Agda WF runner module that calls `WFAPI? GeneratedAPI`.
+2. Translate the supported OpenAPI subset into internal DSL dataclasses.
+3. Generate Agda API modules from the translated DSL.
+4. Generate an Agda runner module for the requested check.
 5. Compile the runner with `agda --compile`.
 6. Execute the compiled binary.
-7. Parse runner output (tag + context fields).
-8. Print stable CLI result with details/context.
+7. Parse the runner output.
+8. Print a stable CLI result with optional detail/context lines.
 
 Decision authority:
-- Agda (`WFAPI?`) decides WF.
-- Python orchestrates IO, code generation, process execution, and formatting.
+- Agda decides WF and compatibility.
+- Python handles IO, translation, code generation, process execution, and user-facing reporting.
 
-### WF Modules
+## Modules
 
 - `loader.py`
   - YAML loading and minimal OpenAPI sanity checks.
@@ -41,29 +45,28 @@ Decision authority:
   - Renders translated DSL into generated Agda API source.
 
 - `wf_runner_printer.py`
-  - Renders generated Agda WF runner source.
-  - Encodes mapping from Agda ill-formed witnesses to stable `WF_ERR:*` tags and context keys/values.
+  - Renders the generated Agda WF runner.
+  - Maps Agda WF witnesses to stable `WF_ERR:*` tags and context fields.
+
+- `compat_runner_printer.py`
+  - Renders the generated Agda compatibility runner.
+  - Maps Agda drift witnesses to stable `COMPAT_ERR:*` tags and context fields.
 
 - `error_reporting.py`
-  - Human-readable message catalogs for `WF_ERR:*` and `TRANSLATION_ERR:*`.
+  - Human-readable message catalogs and context formatting helpers.
 
 - `cli.py`
-  - Main entrypoint and orchestrator (`check-wf`).
+  - Main entrypoint and orchestration for generation, WF, and compatibility.
 
 - `test_wf.py`
-  - Regression suite for fixtures in `../specs/tests`.
-  - Asserts expected tag and expected exit code.
+  - WF regression suite for fixtures in `../specs/tests/wf`.
 
-### Agda Backend Behavior (WF)
+- `test_compat.py`
+  - Compatibility regression suite for fixtures in `../specs/tests/compat`.
 
-When `check-wf` runs:
-1. Generated modules are written to `../agda/Generated`.
-2. Python runs `agda --compile` on the generated WF runner.
-3. Agda compiles through the GHC backend (MAlonzo artifacts under `../agda/MAlonzo`).
-4. Python executes the produced binary.
-5. Python parses the binary output and formats final CLI diagnostics.
+## Well-Formedness (WF)
 
-### WF CLI Commands
+### WF Commands
 
 From this `parser` directory:
 
@@ -71,12 +74,12 @@ From this `parser` directory:
   - Generate Agda files only.
 
 - `python cli.py check-wf <path-to-openapi.yaml>`
-  - Run full WF pipeline.
+  - Run the full WF pipeline.
 
 - `python test_wf.py`
-  - Run WF regression suite.
+  - Run the WF regression suite.
 
-### WF Output Contract and Exit Codes
+### WF Output Contract
 
 - `WF_OK`
   - Exit `0`
@@ -90,7 +93,7 @@ From this `parser` directory:
   - Exit `2`
 
 - `WF_CHECK_ERROR:*`
-  - Infrastructure/runtime issue (parse failure, compile failure, runner failure, unexpected output).
+  - Infrastructure/runtime issue such as load failure, compile failure, runner failure, or unexpected output.
   - Exit `3`
 
 ### WF Design Rule
@@ -98,14 +101,60 @@ From this `parser` directory:
 - Python translation rejects only what cannot be represented in the DSL subset.
 - Agda WF classifies representable malformed structures.
 
-This keeps formal WF judgments in one place: the Agda checker.
+This keeps formal WF judgments centralized in the Agda checker.
 
-## Compatibility (Planned)
+## Compatibility
 
-This README is structured so compatibility can be added as a sibling section to WF.
+Compatibility is directional: `old -> new` asks whether the new API refines the old API.
 
-Planned shape:
-1. Run WF precheck on both old/new specs.
-2. Generate compatibility runner module(s).
-3. Execute Agda compatibility decision.
-4. Return stable `COMPAT_OK` / `COMPAT_ERR:*` outputs with context.
+That means compatibility is not symmetric:
+- `A -> B` can fail
+- `B -> A` can pass
+
+### Compatibility Commands
+
+From this `parser` directory:
+
+- `python cli.py check-compat <old-openapi.yaml> <new-openapi.yaml>`
+  - Run WF on both specs and then run the compatibility check.
+
+- `python test_compat.py`
+  - Run the compatibility regression suite.
+
+### Compatibility Output Contract
+
+- `COMPAT_OK`
+  - Exit `0`
+
+- `COMPAT_ERR:*`
+  - The new API does not refine the old API.
+  - Exit `1`
+
+- `COMPAT_CHECK_ERROR:*`
+  - Infrastructure/runtime issue, or one side failed prerequisite WF checking.
+  - Exit `3`
+
+Compatibility output may also include:
+- `DETAIL: ...`
+- `CONTEXT: key=value [key=value]`
+
+Current context fields are intentionally atomic values such as component names, HTTP methods, parameter names, response statuses, and drift kinds.
+
+## Test Layout
+
+- `../specs/tests/wf`
+  - WF fixtures
+
+- `../specs/tests/compat`
+  - Compatibility fixture pairs
+
+## Backend Behavior
+
+When a check runs:
+1. Python writes generated modules to `../agda/Generated`.
+2. Python invokes `agda --compile` on the generated runner.
+3. Agda compiles through the GHC backend.
+4. Python executes the produced binary.
+5. Python parses the binary output and formats the final CLI result.
+
+This means correctness comes from the Agda model, while user-facing ergonomics come from the Python layer.

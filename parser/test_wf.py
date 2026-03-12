@@ -14,7 +14,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-TESTS_DIR = Path(__file__).parent.parent / "specs" / "tests"
+ROOT_TESTS_DIR = Path(__file__).parent.parent / "specs" / "tests"
+WF_TESTS_DIR = ROOT_TESTS_DIR / "wf"
 CLI = Path(__file__).parent / "cli.py"
 
 TESTS = [
@@ -181,7 +182,7 @@ UNREACHABLE_VIA_YAML = [
 
 
 def run_test(filename: str, expected_tag: str, expected_exit: int, description: str) -> bool:
-    spec_path = TESTS_DIR / filename
+    spec_path = WF_TESTS_DIR / filename
     result = subprocess.run(
         [sys.executable, str(CLI), "check-wf", str(spec_path)],
         capture_output=True,
