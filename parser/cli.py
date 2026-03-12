@@ -264,7 +264,7 @@ def main():
                     print("DETAILS_END")
                 sys.exit(3)
 
-            compat_tag, _, _, _, _ = parse_runner_output(compat_output)
+            compat_tag, key1, value1, key2, value2 = parse_runner_output(compat_output)
             if compat_tag == "COMPAT_OK":
                 print("COMPAT_OK")
                 sys.exit(0)
@@ -274,6 +274,9 @@ def main():
                 compat_message = COMPAT_ERROR_MESSAGES.get(compat_key)
                 if compat_message:
                     print(f"DETAIL: {compat_message}")
+                context_line = format_context_parts((key1, value1), (key2, value2))
+                if context_line:
+                    print(f"CONTEXT: {context_line}")
                 sys.exit(1)
 
             print("COMPAT_CHECK_ERROR:UNEXPECTED_RUNNER_OUTPUT")
