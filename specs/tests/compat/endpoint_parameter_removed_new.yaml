@@ -1,0 +1,13 @@
+openapi: 3.1.0
+paths:
+  /search:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas: {}
