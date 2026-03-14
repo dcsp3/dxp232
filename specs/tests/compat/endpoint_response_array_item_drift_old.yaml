@@ -1,0 +1,15 @@
+openapi: 3.1.0
+paths:
+  /lookup:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+components:
+  schemas: {}

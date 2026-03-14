@@ -1,0 +1,19 @@
+openapi: 3.1.0
+paths:
+  /lookup:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: missing
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas: {}
