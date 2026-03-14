@@ -232,6 +232,15 @@ def main():
             if old_tag != "WF_OK":
                 print("COMPAT_CHECK_ERROR:OLD_SPEC_NOT_WF")
                 print(f"DETAIL: old spec WF result was '{old_tag}'")
+                old_key1, old_value1, old_key2, old_value2 = parse_runner_output(old_output)[1:]
+                if old_tag.startswith("WF_ERR:"):
+                    wf_key = old_tag.split(":", 1)[1].strip()
+                    wf_message = WF_ERROR_MESSAGES.get(wf_key)
+                    if wf_message:
+                        print(f"DETAIL: {wf_message}")
+                    context_line = format_context_parts((old_key1, old_value1), (old_key2, old_value2))
+                    if context_line:
+                        print(f"CONTEXT: {context_line}")
                 sys.exit(3)
 
             print("WF_OK: old spec")
@@ -250,6 +259,15 @@ def main():
             if new_tag != "WF_OK":
                 print("COMPAT_CHECK_ERROR:NEW_SPEC_NOT_WF")
                 print(f"DETAIL: new spec WF result was '{new_tag}'")
+                new_key1, new_value1, new_key2, new_value2 = parse_runner_output(new_output)[1:]
+                if new_tag.startswith("WF_ERR:"):
+                    wf_key = new_tag.split(":", 1)[1].strip()
+                    wf_message = WF_ERROR_MESSAGES.get(wf_key)
+                    if wf_message:
+                        print(f"DETAIL: {wf_message}")
+                    context_line = format_context_parts((new_key1, new_value1), (new_key2, new_value2))
+                    if context_line:
+                        print(f"CONTEXT: {context_line}")
                 sys.exit(3)
 
             print("WF_OK: new spec")
