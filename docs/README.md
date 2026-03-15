@@ -2,6 +2,8 @@
 
 This folder contains project notes, design write-ups, planning material, and older drafts.
 
+> **Disclaimer:** This docs folder includes active notes and older drafts from different project phases. Some details may no longer reflect the current implementation. When in doubt, refer to the project report in the repository root and treat the current implementation as the source of truth over historical write-ups.
+
 ## Core Documents
 
 - [architecture.md](architecture.md) - Overall project architecture and structure notes.
