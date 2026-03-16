@@ -163,17 +163,19 @@ def run_agda_compile_and_execute(agda_dir: Path, module_path: Path) -> tuple[boo
     return True, "", output
 
 
-def parse_runner_output(output: str) -> tuple[str, str, str, str, str]:
+def parse_runner_output(output: str) -> tuple[str, str, str, str, str, str, str]:
     lines = [line.strip() for line in output.splitlines()]
     if not lines:
-        return "", "", "", "", ""
+        return "", "", "", "", "", "", ""
 
     tag = lines[0]
     key1 = lines[1] if len(lines) > 1 else ""
     value1 = lines[2] if len(lines) > 2 else ""
     key2 = lines[3] if len(lines) > 3 else ""
     value2 = lines[4] if len(lines) > 4 else ""
-    return tag, key1, value1, key2, value2
+    key3 = lines[5] if len(lines) > 5 else ""
+    value3 = lines[6] if len(lines) > 6 else ""
+    return tag, key1, value1, key2, value2, key3, value3
 
 
 def main():
@@ -228,17 +230,17 @@ def main():
                     print("DETAILS_END")
                 sys.exit(3)
 
-            old_tag, _, _, _, _ = parse_runner_output(old_output)
+            old_tag, _, _, _, _, _, _ = parse_runner_output(old_output)
             if old_tag != "WF_OK":
                 print("COMPAT_CHECK_ERROR:OLD_SPEC_NOT_WF")
                 print(f"DETAIL: old spec WF result was '{old_tag}'")
-                old_key1, old_value1, old_key2, old_value2 = parse_runner_output(old_output)[1:]
+                old_key1, old_value1, old_key2, old_value2, old_key3, old_value3 = parse_runner_output(old_output)[1:]
                 if old_tag.startswith("WF_ERR:"):
                     wf_key = old_tag.split(":", 1)[1].strip()
                     wf_message = WF_ERROR_MESSAGES.get(wf_key)
                     if wf_message:
                         print(f"DETAIL: {wf_message}")
-                    context_line = format_context_parts((old_key1, old_value1), (old_key2, old_value2))
+                    context_line = format_context_parts((old_key1, old_value1), (old_key2, old_value2), (old_key3, old_value3))
                     if context_line:
                         print(f"CONTEXT: {context_line}")
                 sys.exit(3)
@@ -255,17 +257,17 @@ def main():
                     print("DETAILS_END")
                 sys.exit(3)
 
-            new_tag, _, _, _, _ = parse_runner_output(new_output)
+            new_tag, _, _, _, _, _, _ = parse_runner_output(new_output)
             if new_tag != "WF_OK":
                 print("COMPAT_CHECK_ERROR:NEW_SPEC_NOT_WF")
                 print(f"DETAIL: new spec WF result was '{new_tag}'")
-                new_key1, new_value1, new_key2, new_value2 = parse_runner_output(new_output)[1:]
+                new_key1, new_value1, new_key2, new_value2, new_key3, new_value3 = parse_runner_output(new_output)[1:]
                 if new_tag.startswith("WF_ERR:"):
                     wf_key = new_tag.split(":", 1)[1].strip()
                     wf_message = WF_ERROR_MESSAGES.get(wf_key)
                     if wf_message:
                         print(f"DETAIL: {wf_message}")
-                    context_line = format_context_parts((new_key1, new_value1), (new_key2, new_value2))
+                    context_line = format_context_parts((new_key1, new_value1), (new_key2, new_value2), (new_key3, new_value3))
                     if context_line:
                         print(f"CONTEXT: {context_line}")
                 sys.exit(3)
@@ -282,7 +284,7 @@ def main():
                     print("DETAILS_END")
                 sys.exit(3)
 
-            compat_tag, key1, value1, key2, value2 = parse_runner_output(compat_output)
+            compat_tag, key1, value1, key2, value2, key3, value3 = parse_runner_output(compat_output)
             if compat_tag == "COMPAT_OK":
                 print("COMPAT_OK")
                 sys.exit(0)
@@ -292,7 +294,7 @@ def main():
                 compat_message = COMPAT_ERROR_MESSAGES.get(compat_key)
                 if compat_message:
                     print(f"DETAIL: {compat_message}")
-                context_line = format_context_parts((key1, value1), (key2, value2))
+                context_line = format_context_parts((key1, value1), (key2, value2), (key3, value3))
                 if context_line:
                     print(f"CONTEXT: {context_line}")
                 sys.exit(1)
@@ -322,7 +324,7 @@ def main():
                     print("DETAILS_END")
                 sys.exit(3)
 
-            tag, key1, value1, key2, value2 = parse_runner_output(output)
+            tag, key1, value1, key2, value2, key3, value3 = parse_runner_output(output)
 
             if tag == "WF_OK":
                 print("WF_OK")
@@ -332,7 +334,7 @@ def main():
                 message = WF_ERROR_MESSAGES.get(key)
                 if message:
                     print(f"DETAIL: {message}")
-                context_line = format_context_parts((key1, value1), (key2, value2))
+                context_line = format_context_parts((key1, value1), (key2, value2), (key3, value3))
                 if context_line:
                     print(f"CONTEXT: {context_line}")
                 sys.exit(1)
