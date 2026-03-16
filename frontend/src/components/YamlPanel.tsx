@@ -6,9 +6,10 @@ interface YamlPanelProps {
   value: string;
   onChange: (value: string) => void;
   onLoadExample: () => void;
+  onClear?: () => void;
 }
 
-const YamlPanel = ({ title, subtitle, value, onChange, onLoadExample }: YamlPanelProps) => {
+const YamlPanel = ({ title, subtitle, value, onChange, onLoadExample, onClear }: YamlPanelProps) => {
   const indentUnit = "  ";
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -63,12 +64,22 @@ const YamlPanel = ({ title, subtitle, value, onChange, onLoadExample }: YamlPane
             <p className="text-[11px] text-muted-foreground">{subtitle}</p>
           </div>
         </div>
-        <button
-          onClick={onLoadExample}
-          className="rounded-md border border-border bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          Load Example
-        </button>
+        <div className="flex items-center gap-1.5">
+          {value.trim() && onClear && (
+            <button
+              onClick={onClear}
+              className="rounded-md border border-border bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              Clear
+            </button>
+          )}
+          <button
+            onClick={onLoadExample}
+            className="rounded-md border border-border bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            Load Example
+          </button>
+        </div>
       </div>
       <textarea
         value={value}
