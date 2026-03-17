@@ -4,7 +4,7 @@ import YamlPanel from "@/components/YamlPanel";
 import ResultDisplay from "@/components/ResultDisplay";
 import { oldApiExample, newApiExample } from "@/data/examples";
 import { getJobStatus, startCompatJob, type CheckResponse } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { ArrowUpDown, Loader2 } from "lucide-react";
 
 const Index = () => {
   const [oldApi, setOldApi] = useState("");
@@ -12,6 +12,7 @@ const Index = () => {
   const [result, setResult] = useState<CheckResponse | null>(null);
   const [computing, setComputing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -19,6 +20,19 @@ const Index = () => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [result]);
+
+  useEffect(() => {
+    if (!computing) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setElapsedSeconds((current) => current + 1);
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [computing]);
 
   const handleCompute = useCallback(async () => {
     if (!oldApi.trim() || !newApi.trim()) return;
@@ -47,6 +61,13 @@ const Index = () => {
     }
   }, [oldApi, newApi]);
 
+  const handleSwap = useCallback(() => {
+    setOldApi(newApi);
+    setNewApi(oldApi);
+    setResult(null);
+    setError(null);
+  }, [newApi, oldApi]);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -72,14 +93,29 @@ const Index = () => {
         </div>
 
         <div className="mt-8 text-center">
-          <button
-            onClick={handleCompute}
-            disabled={computing || !oldApi.trim() || !newApi.trim()}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-7 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30 disabled:shadow-none"
-          >
-            {computing && <Loader2 className="h-4 w-4 animate-spin" />}
-            {computing ? "Checking…" : "Check Compatibility"}
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={handleCompute}
+              disabled={computing || !oldApi.trim() || !newApi.trim()}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-7 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30 disabled:shadow-none"
+            >
+              {computing && <Loader2 className="h-4 w-4 animate-spin" />}
+              {computing ? "Checking…" : "Check Compatibility"}
+            </button>
+            <button
+              onClick={handleSwap}
+              disabled={computing || (!oldApi.trim() && !newApi.trim())}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ArrowUpDown className="h-4 w-4" />
+              Swap Old / New
+            </button>
+          </div>
+          {computing && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Running compatibility check... {elapsedSeconds}s elapsed
+            </p>
+          )}
           {error && <p className="mx-auto mt-3 max-w-xl text-xs text-destructive">{error}</p>}
         </div>
 
@@ -90,6 +126,15 @@ const Index = () => {
               <div className="mt-3 h-4 w-3/4 rounded bg-muted" />
               <div className="mt-2 h-3 w-1/3 rounded bg-muted" />
             </div>
+          </div>
+        )}
+        {!computing && !result && !error && (
+          <div className="mx-auto mt-8 max-w-2xl rounded-xl border border-dashed border-border bg-card/60 p-6 text-left">
+            <p className="text-sm font-semibold text-foreground">How to use</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Paste an older and newer OpenAPI spec, then run a check to get a compatibility verdict,
+              a short diagnosis, and structured details about any breaking change.
+            </p>
           </div>
         )}
         <div ref={resultRef}>
