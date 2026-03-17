@@ -60,7 +60,6 @@ function buildDiagnosis(result: CheckResponse, contextEntries: Array<[string, st
     return "The candidate API preserves the existing contract for the cases checked.";
   }
 
-  // ── Translation errors ──────────────────────────────────────────────────
   if (result.tag === "TRANSLATION_ERR:REQUEST_BODY_MISSING") {
     return ep ? `${ep} is missing a request body.` : method ? `${method} operation is missing a request body.` : "An operation is missing a request body.";
   }
@@ -86,7 +85,6 @@ function buildDiagnosis(result: CheckResponse, contextEntries: Array<[string, st
     return "The spec uses a feature outside the supported OpenAPI subset.";
   }
 
-  // ── Well-formedness errors ───────────────────────────────────────────────
   if (result.tag === "WF_ERR:API_DUPLICATE_COMPONENTS") {
     return component ? `Duplicate component name: ${component}.` : "The spec has duplicate component names.";
   }
@@ -106,7 +104,6 @@ function buildDiagnosis(result: CheckResponse, contextEntries: Array<[string, st
     return "The spec failed formal well-formedness checks.";
   }
 
-  // ── Endpoint top-level ──────────────────────────────────────────────────
   if (result.tag === "COMPAT_ERR:ENDPOINT_REMOVED") {
     return ep ? `${ep} no longer exists in the new API.` : "An endpoint was removed.";
   }
@@ -117,7 +114,6 @@ function buildDiagnosis(result: CheckResponse, contextEntries: Array<[string, st
     return ep ? `${ep} changed its HTTP method.` : "An endpoint changed its HTTP method.";
   }
 
-  // ── Parameters ──────────────────────────────────────────────────────────
   if (result.tag === "COMPAT_ERR:ENDPOINT_PARAMETER_REMOVED") {
     if (ep && parameter) return `${ep} removed parameter ${parameter}.`;
     if (ep) return `${ep} removed a parameter.`;
@@ -140,7 +136,6 @@ function buildDiagnosis(result: CheckResponse, contextEntries: Array<[string, st
     return "An endpoint changed a parameter's type.";
   }
 
-  // ── Request body ────────────────────────────────────────────────────────
   if (result.tag === "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_PRIMITIVE_CHANGED") {
     if (ep && oldType && newType) return `${ep} changed its request body type from ${oldType} to ${newType}.`;
     if (ep) return `${ep} changed its request body type.`;
@@ -168,7 +163,6 @@ function buildDiagnosis(result: CheckResponse, contextEntries: Array<[string, st
     return ep ? `${ep} changed the item type of its request body array.` : "An endpoint changed its request body array item type.";
   }
 
-  // ── Responses ───────────────────────────────────────────────────────────
   if (result.tag === "COMPAT_ERR:ENDPOINT_RESPONSE_REMOVED") {
     if (ep && status) return `${ep} dropped the ${status} response.`;
     if (ep) return `${ep} dropped a response status.`;
@@ -207,7 +201,6 @@ function buildDiagnosis(result: CheckResponse, contextEntries: Array<[string, st
     return ep ? `${ep} changed a response array item type.` : "An endpoint changed a response array item type.";
   }
 
-  // ── Components ──────────────────────────────────────────────────────────
   if (result.tag === "COMPAT_ERR:COMPONENT_REMOVED") {
     return component ? `Component ${component} was removed.` : "A shared component was removed.";
   }
@@ -295,7 +288,6 @@ const ResultDisplay = ({ result }: ResultDisplayProps) => {
       setCopiedKey(key);
       setTimeout(() => setCopiedKey(null), 1800);
     } catch {
-      // clipboard not available
     }
   };
 

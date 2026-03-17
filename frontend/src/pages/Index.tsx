@@ -1,14 +1,22 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import YamlPanel from "@/components/YamlPanel";
 import ResultDisplay from "@/components/ResultDisplay";
-import { oldApiExample, newApiExample } from "@/data/examples";
+import { oldApiExample, newApiExample, EXAMPLES } from "@/data/examples";
 import { getJobStatus, startCompatJob, type CheckResponse } from "@/lib/api";
-import { ArrowUpDown, Loader2 } from "lucide-react";
+import { ArrowUpDown, BookOpen, Loader2 } from "lucide-react";
 
 const Index = () => {
-  const [oldApi, setOldApi] = useState("");
-  const [newApi, setNewApi] = useState("");
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [oldApi, setOldApi] = useState<string>(
+    () => (location.state as { oldSpec?: string } | null)?.oldSpec ?? ""
+  );
+  const [newApi, setNewApi] = useState<string>(
+    () => (location.state as { newSpec?: string } | null)?.newSpec ?? ""
+  );
   const [result, setResult] = useState<CheckResponse | null>(null);
   const [computing, setComputing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,11 +76,31 @@ const Index = () => {
     setError(null);
   }, [newApi, oldApi]);
 
+  const fromExampleId = (location.state as { fromExample?: string } | null)?.fromExample;
+  const loadedExampleTitle = fromExampleId
+    ? (EXAMPLES.find((e) => e.id === fromExampleId)?.title ?? null)
+    : null;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
+        {loadedExampleTitle && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-card/80 px-4 py-2.5">
+            <BookOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              Example loaded:{" "}
+              <span className="font-medium text-foreground">{loadedExampleTitle}</span>
+            </p>
+            <button
+              onClick={() => navigate("/examples")}
+              className="ml-auto text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Browse all
+            </button>
+          </div>
+        )}
         <div className="flex flex-col gap-3 md:flex-row">
           <YamlPanel
             title="Old API"
@@ -135,6 +163,13 @@ const Index = () => {
               Paste an older and newer OpenAPI spec, then run a check to get a compatibility verdict,
               a short diagnosis, and structured details about any breaking change.
             </p>
+            <button
+              onClick={() => navigate("/examples")}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Browse example pairs
+            </button>
           </div>
         )}
         <div ref={resultRef}>
@@ -143,7 +178,7 @@ const Index = () => {
       </main>
 
       <footer className="border-t border-border py-4 text-center text-[11px] text-muted-foreground">
-        Research prototype · Results derived from formal Agda model
+        Compatibility results derived from a formal Agda model
       </footer>
     </div>
   );
