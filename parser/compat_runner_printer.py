@@ -68,7 +68,7 @@ def print_compat_runner_module_source(
         "schemaDriftCtxK : ∀ {s t} → SchemaDrift s t → String",
         "schemaDriftCtxK (PrimitiveChanged _ _ _) = \"old_type\"",
         "schemaDriftCtxK (ArrayItemDrift _ _ _ _ d) = schemaDriftCtxK d",
-        "schemaDriftCtxK (RequiredFieldRemoved _ _ _ _) = \"required_field\"",
+        "schemaDriftCtxK (RequiredFieldRemoved _ _ _ _) = \"property\"",
         "schemaDriftCtxK (PropertyRemoved _ _ _ _) = \"property\"",
         "schemaDriftCtxK (PropertyDrift _ _ _ _ _) = \"property\"",
         "schemaDriftCtxK (ShapeMismatch _) = \"old_type\"",
