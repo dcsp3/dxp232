@@ -1,8 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 
+const NAV_LINKS = [
+  { to: "/examples", label: "Examples" },
+  { to: "/about", label: "About" },
+];
+
 const Header = () => {
-  const location = useLocation();
-  const isAbout = location.pathname === "/about";
+  const { pathname } = useLocation();
 
   return (
     <header className="border-b border-border bg-card/60 backdrop-blur-md">
@@ -13,16 +17,37 @@ const Header = () => {
               API Refinement Checker
             </h1>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Formally Verified Compatibility for OpenAPI Specifications
+              Formally verified OpenAPI compatibility
             </p>
           </Link>
         </div>
-        <Link
-          to={isAbout ? "/" : "/about"}
-          className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          {isAbout ? "← Back" : "About"}
-        </Link>
+
+        <nav className="flex items-center gap-1.5">
+          {pathname !== "/" && (
+            <Link
+              to="/"
+              className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              ← Checker
+            </Link>
+          )}
+          {NAV_LINKS.map(({ to, label }) => {
+            const isActive = pathname === to;
+            return (
+              <Link
+                key={to}
+                to={to}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  isActive
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </header>
   );
