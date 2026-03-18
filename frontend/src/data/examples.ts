@@ -145,7 +145,7 @@ paths:
                 type: string
 components:
   schemas:
-    Status:
+    Ping:
       type: object
       properties:
         healthy:
@@ -174,7 +174,7 @@ paths:
                 type: string
 components:
   schemas:
-    Status:
+    Ping:
       type: object
       properties:
         healthy:
@@ -627,7 +627,7 @@ const breakingParameterRemoved: ExamplePair = {
   id: "breaking-parameter-removed",
   title: "Query parameter removed",
   description:
-    "GET /items had an optional filter query parameter. The new API drops it entirely, so clients that send it get no acknowledgement — and server logic that relied on it is gone.",
+    "GET /items had an optional filter query parameter. The new API drops it entirely, so clients that send it get no acknowledgement and any server logic that relied on it is gone.",
   change: "GET /items: optional query param filter removed",
   category: "breaking",
   expectedTag: "COMPAT_ERR:ENDPOINT_PARAMETER_REMOVED",
@@ -1089,7 +1089,7 @@ const inputErrorDuplicateStatuses: ExamplePair = {
   id: "input-duplicate-statuses",
   title: "Duplicate response status codes",
   description:
-    "GET /ping declares a 200 response twice. The spec fails the well-formedness check — a response status code must appear at most once per operation.",
+    "GET /ping declares a 200 response twice. The spec fails the well-formedness check: a response status code must appear at most once per operation.",
   change: "Old API: GET /ping has 200 status declared twice",
   category: "input-error",
   expectedTag: "WF_ERR:API_ENDPOINT_DUPLICATE_STATUSES",
@@ -1112,7 +1112,7 @@ paths:
                 type: integer
 components:
   schemas:
-    Status:
+    Health:
       type: object
       properties:
         healthy:
@@ -1132,7 +1132,7 @@ paths:
                 type: string
 components:
   schemas:
-    Status:
+    Health:
       type: object
       properties:
         healthy:

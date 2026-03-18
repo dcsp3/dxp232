@@ -22,213 +22,104 @@ function describeTag(tag: string | null): string {
   switch (tag) {
     case "COMPAT_OK":
       return "APIs are compatible. The old API is a refinement of the new one.";
-    case "COMPAT_ERR:COMPONENT_SCHEMA_SHAPE_MISMATCH":
-      return "A shared component schema changed structural shape between versions.";
+
     case "COMPAT_ERR:ENDPOINT_REMOVED":
       return "An endpoint present in the old API is missing in the new API.";
+    case "COMPAT_ERR:ENDPOINT_ROUTE_CHANGED":
+      return "An endpoint changed its route between versions.";
+    case "COMPAT_ERR:ENDPOINT_METHOD_CHANGED":
+      return "An endpoint changed its HTTP method between versions.";
+    case "COMPAT_ERR:ENDPOINT_PARAMETER_REMOVED":
+      return "A parameter present in the old API has been removed.";
+    case "COMPAT_ERR:ENDPOINT_REQUIRED_PARAMETER_ADDED":
+      return "An optional parameter has been made required.";
+    case "COMPAT_ERR:ENDPOINT_NEW_REQUIRED_PARAMETER":
+      return "A new required parameter was added to an endpoint.";
+    case "COMPAT_ERR:ENDPOINT_PARAMETER_SCHEMA_CHANGED":
+      return "A parameter's type changed between versions.";
+    case "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_PRIMITIVE_CHANGED":
+      return "An endpoint's request body type changed.";
+    case "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_SHAPE_MISMATCH":
+      return "An endpoint's request body changed its structural shape.";
+    case "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_REQUIRED_FIELD_REMOVED":
+      return "A required field was removed from an endpoint's request body.";
+    case "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_PROPERTY_REMOVED":
+      return "A property was removed from an endpoint's request body.";
+    case "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_PROPERTY_DRIFT":
+      return "A request body property changed its type.";
+    case "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_ARRAY_ITEM_DRIFT":
+      return "A request body array's item type changed.";
+    case "COMPAT_ERR:ENDPOINT_RESPONSE_REMOVED":
+      return "A response status has been removed from an endpoint.";
+    case "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_PRIMITIVE_CHANGED":
+      return "An endpoint's response type changed.";
+    case "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_SHAPE_MISMATCH":
+      return "An endpoint's response changed its structural shape.";
+    case "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_REQUIRED_FIELD_REMOVED":
+      return "A required field was removed from an endpoint's response.";
+    case "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_PROPERTY_REMOVED":
+      return "A property was removed from an endpoint's response.";
+    case "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_PROPERTY_DRIFT":
+      return "A response property changed its type.";
+    case "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_ARRAY_ITEM_DRIFT":
+      return "A response array's item type changed.";
+    case "COMPAT_ERR:COMPONENT_REMOVED":
+      return "A shared component schema present in the old API has been removed.";
+    case "COMPAT_ERR:COMPONENT_SCHEMA_PRIMITIVE_CHANGED":
+      return "A component schema's primitive type changed.";
+    case "COMPAT_ERR:COMPONENT_SCHEMA_SHAPE_MISMATCH":
+      return "A component schema changed its structural shape.";
+    case "COMPAT_ERR:COMPONENT_SCHEMA_REQUIRED_FIELD_REMOVED":
+      return "A required field was removed from a component schema.";
+    case "COMPAT_ERR:COMPONENT_SCHEMA_PROPERTY_REMOVED":
+      return "A property was removed from a component schema.";
+    case "COMPAT_ERR:COMPONENT_SCHEMA_PROPERTY_DRIFT":
+      return "A component property changed its type.";
+    case "COMPAT_ERR:COMPONENT_SCHEMA_ARRAY_ITEM_DRIFT":
+      return "A component schema's array item type changed.";
+
+    case "TRANSLATION_ERR:PATH_PARAMETER_NOT_REQUIRED":
+      return "A path parameter must be marked required: true.";
+    case "TRANSLATION_ERR:PATH_LEVEL_PARAMETERS_UNSUPPORTED":
+      return "Path-level parameters are not supported; declare them on each operation instead.";
+    case "TRANSLATION_ERR:METHOD_UNSUPPORTED":
+      return "The endpoint uses an HTTP method not supported by this checker.";
+    case "TRANSLATION_ERR:PARAMETER_UNSUPPORTED_LOCATION":
+      return "A parameter uses an unsupported location (only path and query are supported).";
+    case "TRANSLATION_ERR:PARAMETER_NON_PRIMITIVE":
+      return "A parameter must have a primitive schema type.";
+    case "TRANSLATION_ERR:STATUS_UNSUPPORTED":
+      return "A response uses a status code not supported by this checker.";
+    case "TRANSLATION_ERR:REQUEST_BODY_MISSING":
+      return "An endpoint is missing a required request body.";
+    case "TRANSLATION_ERR:BODY_UNSUPPORTED_METHOD":
+      return "An endpoint uses an unsupported method and request body combination.";
+
+    case "WF_ERR:API_DUPLICATE_COMPONENTS":
+      return "The specification has duplicate component definitions.";
+    case "WF_ERR:API_DUPLICATE_ENDPOINTS":
+      return "The specification has duplicate endpoint definitions.";
+    case "WF_ERR:API_ENDPOINT_DUPLICATE_PARAMETERS":
+      return "An endpoint has duplicate parameter names.";
+    case "WF_ERR:API_ENDPOINT_DUPLICATE_STATUSES":
+      return "An endpoint declares the same response status code more than once.";
+    case "WF_ERR:API_ENDPOINT_PATH_ILL_FORMED":
+      return "An endpoint has an ill-formed path.";
+
     default:
-      if (tag.startsWith("TRANSLATION_ERR")) {
+      if (tag.startsWith("TRANSLATION_ERR"))
         return "The YAML could not be translated into the supported OpenAPI subset.";
-      }
-      if (tag.startsWith("WF_ERR")) {
+      if (tag.startsWith("WF_ERR"))
         return "The specification failed formal well-formedness checks.";
-      }
-      if (tag.startsWith("COMPAT_ERR")) {
+      if (tag.startsWith("COMPAT_ERR"))
         return "The APIs are not compatible under the formal refinement relation.";
-      }
-      if (tag.startsWith("BACKEND_ERROR")) {
+      if (tag.startsWith("BACKEND_ERROR") || tag.startsWith("COMPAT_CHECK_ERROR"))
         return "The backend encountered an internal failure while running the check.";
-      }
       return "Compatibility check returned an unclassified result tag.";
   }
 }
 
-function buildDiagnosis(result: CheckResponse, contextEntries: Array<[string, string]>): string {
-  const context = Object.fromEntries(contextEntries);
-  const method = context.method;
-  const path = context.path;
-  const component = context.component;
-  const property = context.property;
-  const parameter = context.parameter;
-  const oldType = context.old_type;
-  const newType = context.new_type;
-  const status = context.response_status ?? context.status;
 
-  const ep = method && path ? `${method} ${path}` : null;
-
-  if (result.tag === "COMPAT_OK") {
-    return "The candidate API preserves the existing contract for the cases checked.";
-  }
-
-  if (result.tag === "TRANSLATION_ERR:REQUEST_BODY_MISSING") {
-    return ep ? `${ep} is missing a request body.` : method ? `${method} operation is missing a request body.` : "An operation is missing a request body.";
-  }
-  if (result.tag === "TRANSLATION_ERR:BODY_UNSUPPORTED_METHOD") {
-    return ep ? `${ep} uses a method/body combination that is not supported.` : "An operation uses an unsupported method/body combination.";
-  }
-  if (result.tag === "TRANSLATION_ERR:METHOD_UNSUPPORTED") {
-    return method ? `HTTP method ${method} is not supported by this checker.` : "An endpoint uses an unsupported HTTP method.";
-  }
-  if (result.tag === "TRANSLATION_ERR:PARAMETER_UNSUPPORTED_LOCATION") {
-    return parameter ? `Parameter ${parameter} uses an unsupported location (only path and query are supported).` : "A parameter uses an unsupported location.";
-  }
-  if (result.tag === "TRANSLATION_ERR:PARAMETER_NON_PRIMITIVE") {
-    return parameter ? `Parameter ${parameter} must have a primitive type.` : "A parameter must have a primitive type.";
-  }
-  if (result.tag === "TRANSLATION_ERR:PATH_PARAMETER_NOT_REQUIRED") {
-    return parameter ? `Path parameter ${parameter} must be marked required.` : "A path parameter must be marked required.";
-  }
-  if (result.tag === "TRANSLATION_ERR:STATUS_UNSUPPORTED") {
-    return status ? `Response status ${status} is not supported by this checker.` : "A response uses an unsupported status code.";
-  }
-  if (result.tag?.startsWith("TRANSLATION_ERR")) {
-    return "The spec uses a feature outside the supported OpenAPI subset.";
-  }
-
-  if (result.tag === "WF_ERR:API_DUPLICATE_COMPONENTS") {
-    return component ? `Duplicate component name: ${component}.` : "The spec has duplicate component names.";
-  }
-  if (result.tag === "WF_ERR:API_DUPLICATE_ENDPOINTS") {
-    return ep ? `${ep} is defined more than once.` : "The spec has duplicate endpoint definitions.";
-  }
-  if (result.tag === "WF_ERR:API_ENDPOINT_DUPLICATE_PARAMETERS") {
-    return ep && parameter ? `${ep} has duplicate parameter ${parameter}.` : ep ? `${ep} has duplicate parameters.` : "An endpoint has duplicate parameters.";
-  }
-  if (result.tag === "WF_ERR:API_ENDPOINT_DUPLICATE_STATUSES") {
-    return ep && status ? `${ep} has duplicate ${status} response.` : ep ? `${ep} has duplicate response statuses.` : "An endpoint has duplicate response statuses.";
-  }
-  if (result.tag === "WF_ERR:API_ENDPOINT_PATH_ILL_FORMED") {
-    return ep ? `${ep} has a path/parameter alignment problem.` : "An endpoint has an ill-formed path.";
-  }
-  if (result.tag?.startsWith("WF_ERR")) {
-    return "The spec failed formal well-formedness checks.";
-  }
-
-  if (result.tag === "COMPAT_ERR:ENDPOINT_REMOVED") {
-    return ep ? `${ep} no longer exists in the new API.` : "An endpoint was removed.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_ROUTE_CHANGED") {
-    return ep ? `${ep} changed its route.` : "An endpoint changed its route.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_METHOD_CHANGED") {
-    return ep ? `${ep} changed its HTTP method.` : "An endpoint changed its HTTP method.";
-  }
-
-  if (result.tag === "COMPAT_ERR:ENDPOINT_PARAMETER_REMOVED") {
-    if (ep && parameter) return `${ep} removed parameter ${parameter}.`;
-    if (ep) return `${ep} removed a parameter.`;
-    return "An endpoint removed a parameter.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_REQUIRED_PARAMETER_ADDED") {
-    if (ep && parameter) return `${ep} made parameter ${parameter} required.`;
-    if (ep) return `${ep} made an optional parameter required.`;
-    return "An endpoint made an optional parameter required.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_NEW_REQUIRED_PARAMETER") {
-    if (ep && parameter) return `${ep} added a new required parameter ${parameter}.`;
-    if (ep) return `${ep} added a new required parameter.`;
-    return "An endpoint added a new required parameter.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_PARAMETER_SCHEMA_CHANGED") {
-    if (ep && parameter && oldType && newType) return `${ep} changed parameter ${parameter} from ${oldType} to ${newType}.`;
-    if (ep && parameter) return `${ep} changed the type of parameter ${parameter}.`;
-    if (ep) return `${ep} changed a parameter's type.`;
-    return "An endpoint changed a parameter's type.";
-  }
-
-  if (result.tag === "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_PRIMITIVE_CHANGED") {
-    if (ep && oldType && newType) return `${ep} changed its request body type from ${oldType} to ${newType}.`;
-    if (ep) return `${ep} changed its request body type.`;
-    return "An endpoint changed its request body type.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_SHAPE_MISMATCH") {
-    return ep ? `${ep} changed its request body structure entirely.` : "An endpoint changed its request body structure.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_REQUIRED_FIELD_REMOVED") {
-    if (ep && property) return `${ep} dropped required field ${property} from its request body.`;
-    if (ep) return `${ep} dropped a required field from its request body.`;
-    return "An endpoint dropped a required field from its request body.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_PROPERTY_REMOVED") {
-    if (ep && property) return `${ep} removed property ${property} from its request body.`;
-    if (ep) return `${ep} removed a property from its request body.`;
-    return "An endpoint removed a property from its request body.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_PROPERTY_DRIFT") {
-    if (ep && property) return `${ep} changed property ${property} in its request body.`;
-    if (ep) return `${ep} changed a property in its request body.`;
-    return "An endpoint changed a request body property.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_ARRAY_ITEM_DRIFT") {
-    return ep ? `${ep} changed the item type of its request body array.` : "An endpoint changed its request body array item type.";
-  }
-
-  if (result.tag === "COMPAT_ERR:ENDPOINT_RESPONSE_REMOVED") {
-    if (ep && status) return `${ep} dropped the ${status} response.`;
-    if (ep) return `${ep} dropped a response status.`;
-    return "An endpoint dropped a response status.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_PRIMITIVE_CHANGED") {
-    if (ep && status && oldType && newType) return `${ep} ${status} response changed type from ${oldType} to ${newType}.`;
-    if (ep && status) return `${ep} ${status} response changed its type.`;
-    if (ep) return `${ep} changed a response type.`;
-    return "An endpoint changed a response type.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_SHAPE_MISMATCH") {
-    if (ep && status) return `${ep} ${status} response changed its structure entirely.`;
-    return ep ? `${ep} changed a response's structure.` : "An endpoint changed a response structure.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_REQUIRED_FIELD_REMOVED") {
-    if (ep && status && property) return `${ep} ${status} response dropped required field ${property}.`;
-    if (ep && status) return `${ep} ${status} response dropped a required field.`;
-    if (ep) return `${ep} dropped a required field from a response.`;
-    return "An endpoint dropped a required field from a response.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_PROPERTY_REMOVED") {
-    if (ep && status && property) return `${ep} ${status} response removed property ${property}.`;
-    if (ep && status) return `${ep} ${status} response removed a property.`;
-    if (ep) return `${ep} removed a property from a response.`;
-    return "An endpoint removed a property from a response.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_PROPERTY_DRIFT") {
-    if (ep && status && property) return `${ep} ${status} response changed property ${property}.`;
-    if (ep && status) return `${ep} ${status} response changed a property.`;
-    if (ep) return `${ep} changed a response property.`;
-    return "An endpoint changed a response property.";
-  }
-  if (result.tag === "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_ARRAY_ITEM_DRIFT") {
-    if (ep && status) return `${ep} ${status} response changed its array item type.`;
-    return ep ? `${ep} changed a response array item type.` : "An endpoint changed a response array item type.";
-  }
-
-  if (result.tag === "COMPAT_ERR:COMPONENT_REMOVED") {
-    return component ? `Component ${component} was removed.` : "A shared component was removed.";
-  }
-  if (result.tag === "COMPAT_ERR:COMPONENT_SCHEMA_PRIMITIVE_CHANGED") {
-    if (component && oldType && newType) return `Component ${component} changed its type from ${oldType} to ${newType}.`;
-    return component ? `Component ${component} changed its primitive type.` : "A component changed its primitive type.";
-  }
-  if (result.tag === "COMPAT_ERR:COMPONENT_SCHEMA_SHAPE_MISMATCH") {
-    return component ? `Component ${component} changed its structural shape.` : "A component changed its structural shape.";
-  }
-  if (result.tag === "COMPAT_ERR:COMPONENT_SCHEMA_REQUIRED_FIELD_REMOVED") {
-    if (component && property) return `Component ${component} dropped required field ${property}.`;
-    return component ? `Component ${component} dropped a required field.` : "A component dropped a required field.";
-  }
-  if (result.tag === "COMPAT_ERR:COMPONENT_SCHEMA_PROPERTY_REMOVED") {
-    if (component && property) return `Component ${component} removed property ${property}.`;
-    return component ? `Component ${component} removed a property.` : "A component removed a property.";
-  }
-  if (result.tag === "COMPAT_ERR:COMPONENT_SCHEMA_PROPERTY_DRIFT") {
-    if (component && property) return `Component ${component} changed property ${property}.`;
-    return component ? `Component ${component} changed a property.` : "A component changed a property.";
-  }
-  if (result.tag === "COMPAT_ERR:COMPONENT_SCHEMA_ARRAY_ITEM_DRIFT") {
-    return component ? `Component ${component} changed its array item type.` : "A component changed its array item type.";
-  }
-
-  return describeTag(result.tag);
-}
 
 function labelContextKey(key: string): string {
   const keyMap: Record<string, string> = {
@@ -272,7 +163,7 @@ const ResultDisplay = ({ result }: ResultDisplayProps) => {
   const category = classifyTag(result.tag);
   const allContextEntries = Object.entries(result.context ?? {});
   const contextEntries = [...allContextEntries].sort(([leftKey], [rightKey]) => priorityForKey(leftKey) - priorityForKey(rightKey));
-  const diagnosis = buildDiagnosis(result, contextEntries);
+  const diagnosis = describeTag(result.tag);
   const keyFacts = contextEntries.filter(([key]) => ["path", "method", "component", "property", "parameter", "old_type", "new_type"].includes(key));
   const summaryText = [
     `Diagnosis: ${diagnosis}`,
