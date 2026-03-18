@@ -147,15 +147,6 @@ const Index = () => {
           {error && <p className="mx-auto mt-3 max-w-xl text-xs text-destructive">{error}</p>}
         </div>
 
-        {computing && !result && (
-          <div className="mx-auto mt-8 max-w-2xl">
-            <div className="animate-pulse rounded-xl border border-border bg-card p-5">
-              <div className="h-8 w-36 rounded-md bg-muted" />
-              <div className="mt-3 h-4 w-3/4 rounded bg-muted" />
-              <div className="mt-2 h-3 w-1/3 rounded bg-muted" />
-            </div>
-          </div>
-        )}
         {!computing && !result && !error && (
           <div className="mx-auto mt-8 max-w-2xl rounded-xl border border-dashed border-border bg-card/60 p-6 text-left">
             <p className="text-sm font-semibold text-foreground">How to use</p>

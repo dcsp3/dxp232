@@ -21,7 +21,7 @@ function describeTag(tag: string | null): string {
 
   switch (tag) {
     case "COMPAT_OK":
-      return "APIs are compatible. The old API is a refinement of the new one.";
+      return "The new API is backward compatible with the old one.";
 
     case "COMPAT_ERR:ENDPOINT_REMOVED":
       return "An endpoint present in the old API is missing in the new API.";
