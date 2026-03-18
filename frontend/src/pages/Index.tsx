@@ -178,7 +178,7 @@ const Index = () => {
       </main>
 
       <footer className="border-t border-border py-4 text-center text-[11px] text-muted-foreground">
-        Compatibility results derived from a formal Agda model
+        Results derived from a formal Agda model
       </footer>
     </div>
   );
