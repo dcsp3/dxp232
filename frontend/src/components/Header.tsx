@@ -14,11 +14,9 @@ const Header = () => {
         <div>
           <Link to="/" className="group block">
             <h1 className="text-base font-semibold tracking-tight text-foreground">
-              API Refinement Checker
+              OpenAPI Compatibility Checker
             </h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Formally verified OpenAPI compatibility
-            </p>
+
           </Link>
         </div>
 
