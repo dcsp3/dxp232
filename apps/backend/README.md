@@ -4,11 +4,11 @@ FastAPI wrapper around the parser CLI for WF and compatibility checks.
 
 ## Run
 
-From repository root:
+From this folder:
 
 ```powershell
-python -m pip install -r backend/requirements.txt
-python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 Open docs:

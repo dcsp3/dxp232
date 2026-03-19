@@ -5,6 +5,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 
 OLD_SPEC = """openapi: 3.1.0
@@ -78,18 +79,19 @@ def wait_for_health(base_url: str, timeout_seconds: int = 20) -> bool:
 def main() -> int:
   port = 8010
   base_url = f"http://127.0.0.1:{port}"
+  repo_root = str(Path(__file__).resolve().parents[2])
   server = subprocess.Popen(
     [
       "python",
       "-m",
       "uvicorn",
-      "backend.app.main:app",
+      "apps.backend.app.main:app",
       "--host",
       "127.0.0.1",
       "--port",
       str(port),
     ],
-    cwd="..",
+    cwd=repo_root,
     stdout=subprocess.DEVNULL,
     stderr=subprocess.DEVNULL,
   )

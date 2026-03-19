@@ -18,7 +18,7 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[3]
     parser_dir = repo_root / "parser"
     parser_cli_path = parser_dir / "cli.py"
 
