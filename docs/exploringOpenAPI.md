@@ -38,12 +38,12 @@ I want to close this gap by expressing these relationships explicitly and prove 
 
 The full OpenAPI 3.1 specification is large and complex, supporting advanced features like callbacks, polymorphism, multiple media types, and recursive `$ref` definitions. To make formalisation tractable, I will initially focus on a smaller but representative subset, one that captures the typical structure of REST APIs without unnecessary detail. This can later be extended as the DSL evolves.
 
-The goal is to model core properties like:
-- Paths and their operations (GET and POST)
+The goal is to model the structural aspects of REST APIs that directly affect compatibility, including:
+- Paths and their associated operations
 - Parameters (path and query)
-- Request bodies (JSON only)
-- Responses (status-to-schema mappings)
-- Schemas (objects, primitives, optional fields)
+- Request bodies and responses
+- Component schemas and their reuse
+- Object structure, including required and optional fields
 
 This subset reflects the core of REST API design while remaining manageable to encode precisely in a typed language.
 
@@ -110,21 +110,21 @@ Below is a proposed subset of OpenAPI features chosen for formalisation. These a
 
 
 | Category | Feature | Included? | Rationale |
-|-----------|----------|-----------|-----------|
-| **HTTP Methods** | GET, POST, PUT, DELETE, PATCH | ✅ | Covers the standard REST operations, allowing a fuller representation of CRUD patterns. |
+|----------|--------|-----------|-----------|
+| **HTTP Methods** | GET, POST (core methods) | ✅ | Sufficient to model common read/write interactions used in compatibility checks. |
 | **Paths** | Path templates like `/todos/{id}` | ✅ | Core routing mechanism; enables parameterised endpoints. |
-| **Parameters** | Path and Query | ✅ | Capture primary forms of endpoint input. |
-| **Request Body** | JSON content only | ✅ | Restricting to JSON simplifies model while matching common practice. |
-| **Responses** | 200 (OK), 404 (Not Found), 400 (Bad Request), 204 (No Content) | ✅ | Represents typical success and error cases with minimal overhead. |
-| **Schema Types** | `object`, `string`, `integer`, `boolean`, `array` | ✅ | Adds flexibility for list-based responses and request collections. |
-| **Optional Fields** | via `required` property | ✅ | Captures partial or extensible data models. |
-| **Default Values** | Basic scalar defaults | ✅ | Enhances expressivity for simple cases. |
-| **Enumerations** | Fixed sets of allowed strings or numbers | ✅ | Common in OpenAPI and straightforward to model. |
-| **Examples and Descriptions** | Optional metadata fields | ✅ | Adds documentation richness without semantic weight. |
-| **References (`$ref`)** | |  ❌ | Adds complexity via recursion and indirection; deferred to later stages. |
-| **Compositions (`oneOf`, `allOf`, `anyOf`)** | | ❌ | Hard to represent formally; excluded for tractability. |
-| **Authentication and Servers** | | ❌ | Contextual rather than structural. |
-| **Headers and Cookies** |  | ❌ | Peripheral; excluded to focus on path-level definitions. |
+| **Parameters** | Path and Query | ✅ | Capture the primary forms of input to endpoints. |
+| **Request Body** | JSON content | ✅ | Modelled as a single schema per operation for simplicity. |
+| **Responses** | Status-to-schema mappings | ✅ | Captures the relationship between status codes and returned data. |
+| **Schema Types** | Objects, primitives, arrays | ✅ | Sufficient to represent structured request and response data. |
+| **Required Fields** | via `required` property | ✅ | Captures compatibility constraints on data structure. |
+| **Components** | Reusable named schemas | ✅ | Supports modular API definitions and reuse. |
+| **References (`$ref`)** |  | ❌ | Avoided due to indirection and recursive resolution complexity. |
+| **Schema Composition** | `oneOf`, `allOf`, `anyOf` | ❌ | Difficult to model precisely in a decidable setting. |
+| **Multiple Media Types** |  | ❌ | Restricted to JSON for determinism. |
+| **Headers and Cookies** |  | ❌ | Peripheral to compatibility at the level considered. |
+| **Authentication / Servers** |  | ❌ | Contextual rather than structural. |
+| **Examples / Defaults / Metadata** |  | ❌ | Do not affect compatibility semantics. |
 
 
 This subset forms a minimal formal core of OpenAPI sufficient to represent typical REST APIs. It includes all constructs needed to describe endpoints, their inputs, and outputs, while excluding features that complicate formal reasoning without contributing to structure. Each construct in this subset will be represented directly in the DSL’s syntax, providing a one-to-one correspondence with its OpenAPI counterpart. Future extensions (like `$ref` and authentication) can build on this foundation once the base representation is complete.

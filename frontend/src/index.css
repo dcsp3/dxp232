@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 15% 8%;
+    --foreground: 210 20% 92%;
+
+    --card: 225 14% 11%;
+    --card-foreground: 210 20% 92%;
+
+    --popover: 225 14% 11%;
+    --popover-foreground: 210 20% 92%;
+
+    --primary: 213 60% 55%;
+    --primary-foreground: 225 15% 8%;
+
+    --secondary: 225 12% 16%;
+    --secondary-foreground: 210 20% 82%;
+
+    --muted: 225 12% 14%;
+    --muted-foreground: 215 12% 50%;
+
+    --accent: 225 12% 18%;
+    --accent-foreground: 210 20% 92%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 50% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 225 12% 18%;
+    --input: 225 12% 18%;
+    --ring: 213 60% 55%;
+
+    --radius: 0.5rem;
+
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+
+    --sidebar-background: 225 14% 11%;
+    --sidebar-foreground: 210 20% 82%;
+    --sidebar-primary: 213 60% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 225 12% 16%;
+    --sidebar-accent-foreground: 210 20% 82%;
+    --sidebar-border: 225 12% 18%;
+    --sidebar-ring: 213 60% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+  }
+
+  code, pre, textarea.font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Custom Scrollbar */
+@layer utilities {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+    border: 2px solid hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+}
