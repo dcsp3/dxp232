@@ -9,6 +9,15 @@ paths:
             application/json:
               schema:
                 type: string
+  /health:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
 components:
   schemas:
     User:
@@ -30,15 +39,6 @@ paths:
             application/json:
               schema:
                 type: string
-  /health:
-    get:
-      responses:
-        "200":
-          description: ok
-          content:
-            application/json:
-              schema:
-                type: string
 components:
   schemas:
     User:
@@ -46,8 +46,6 @@ components:
       properties:
         id:
           type: integer
-        name:
-          type: string
       required:
         - id`;
 

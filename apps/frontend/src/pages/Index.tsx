@@ -148,15 +148,14 @@ const Index = () => {
         </div>
 
         {!computing && !result && !error && (
-          <div className="mx-auto mt-8 max-w-2xl rounded-xl border border-dashed border-border bg-card/60 p-6 text-left">
-            <p className="text-sm font-semibold text-foreground">How to use</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Paste an older and newer OpenAPI spec, then run a check to get a compatibility verdict,
-              a short diagnosis, and structured details about any breaking change.
+          <div className="mx-auto mt-6 max-w-2xl rounded-xl border border-dashed border-border bg-card/60 p-4 text-left">
+            <p className="text-sm font-semibold text-foreground">How it works</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Compare two OpenAPI specs to identify breaking changes.
             </p>
             <button
               onClick={() => navigate("/examples")}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
             >
               <BookOpen className="h-3.5 w-3.5" />
               Browse example pairs
