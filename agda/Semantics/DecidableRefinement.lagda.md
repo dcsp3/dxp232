@@ -14,13 +14,11 @@ open import Syntax.Syntax
 open import Syntax.Decidable
 
 open import WellFormed.Core
-open import WellFormed.Lemmas
 
 open import Semantics.Variance
 
 open import Semantics.SchemaRefinement
 open import Semantics.SchemaRefinementProperties
-  using (lookupProp-here; lookupProp-skip; lookupProp-∉-nothing; lookupProp-wf; ⊑Co-refl; ⊑Co-trans; prim≢array; prim≢object)
 
 open import Semantics.EndpointRefinement
 open import Semantics.APIRefinement
