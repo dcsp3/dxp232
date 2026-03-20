@@ -152,3 +152,10 @@ No meeting
 - Need to add WF checking flow in the parsing layer first and then move to compatibility as the next implementation phase
 
 ---
+
+## Week 9 (20/3)
+
+- Reviewed the frontend and backend of the application, discussing the flow between parser and Agda core
+- Got feedback on the initial draft of the report and advice on how to refine the remaining sections
+- Make sure to explicitly highlight the most challenging technical sections of the project within the report
+- Debriefed for the final wrap-up meeting next Tuesday
