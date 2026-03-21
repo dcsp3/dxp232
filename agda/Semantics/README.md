@@ -15,7 +15,7 @@ These are the semantics of our framework.
   - [EndpointRefinementProperties.lagda.md](EndpointRefinementProperties.lagda.md)
   - [APIRefinementProperties.lagda.md](APIRefinementProperties.lagda.md)
 - Main Results
+  - [Compatibility.lagda.md](Compatibility.lagda.md)
   - [Drift.lagda.md](Drift.lagda.md)
   - [DriftProperties.lagda.md](DriftProperties.lagda.md)
-  - [Compatibility.lagda.md](Compatibility.lagda.md)
   - [DecidableRefinement.lagda.md](DecidableRefinement.lagda.md)
