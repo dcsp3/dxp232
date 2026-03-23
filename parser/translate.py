@@ -95,10 +95,6 @@ def translate_schema(raw: dict, components: dict) -> Schema:
             properties=properties,
             required=required,
             items=translated_items,
-            enum=None,
-            default=None,
-            description=None,
-            examples=[],
         )
 
     # objects
@@ -127,10 +123,6 @@ def translate_schema(raw: dict, components: dict) -> Schema:
             properties=properties,
             required=required,
             items=translated_items,
-            enum=None,
-            default=None,
-            description=None,
-            examples=[],
         )
 
     # arrays
@@ -157,10 +149,6 @@ def translate_schema(raw: dict, components: dict) -> Schema:
             properties=properties,
             required=required,
             items=translated_items,
-            enum=None,
-            default=None,
-            description=None,
-            examples=[],
         )
 
     _fail("SCHEMA_UNSUPPORTED_TYPE", f"Base type '{base_type}' not supported yet", type=base_type)

@@ -35,11 +35,8 @@ def print_schema(schema: Schema) -> str:
         f"type = {schema.type} ; "
         f"properties = {properties_str} ; "
         f"required = {required_str} ; "
-        f"items = {items_str} ; "
-        "enum = nothing ; "
-        "default = nothing ; "
-        "description = nothing ; "
-        "examples = [] }"
+        f"items = {items_str} "
+        "}"
     )
 
 def print_path_segment(seg: PathSegment) -> str:

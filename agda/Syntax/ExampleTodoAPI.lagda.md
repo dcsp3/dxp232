@@ -65,10 +65,6 @@ IdSchema = record { type = integer
                   ; properties = []
                   ; required = []
                   ; items = nothing
-                  ; enum = nothing
-                  ; default = nothing
-                  ; description = nothing
-                  ; examples = []
                   }
 
 TitleSchema : Schema
@@ -76,10 +72,6 @@ TitleSchema = record { type = string
                      ; properties = []
                      ; required = []
                      ; items = nothing
-                     ; enum = nothing
-                     ; default = nothing
-                     ; description = nothing
-                     ; examples = []
                      }
 
 MessageSchema : Schema
@@ -87,10 +79,6 @@ MessageSchema = record { type = string
                        ; properties = []
                        ; required = []
                        ; items = nothing
-                       ; enum = nothing
-                       ; default = nothing
-                       ; description = nothing
-                       ; examples = []
                        }
 ```
 
@@ -105,10 +93,6 @@ Todo = record
   ; properties  = ("id" , IdSchema) :: ("title" , TitleSchema)  :: []
   ; required    = "id" :: "title" :: []
   ; items       = nothing
-  ; enum        = nothing
-  ; default     = nothing
-  ; description = nothing
-  ; examples    = []
   }
 
 Error : Schema
@@ -117,10 +101,6 @@ Error = record
   ; properties  = ("message" , MessageSchema) :: []
   ; required    = "message" :: []
   ; items       = nothing
-  ; enum        = nothing
-  ; default     = nothing
-  ; description = nothing
-  ; examples    = []
   }  
 ```
 

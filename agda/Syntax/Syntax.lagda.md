@@ -76,11 +76,6 @@ record Schema : Set where
     properties  : List (String × Schema)    -- fields for objects
     required    : List String               -- required field names
     items       : Maybe Schema              -- element type for arrays
-
-    enum        : Maybe (List String)       -- allowed values (if constrained)
-    default     : Maybe String              -- default literal (if any)
-    description : Maybe String              -- optional documentation
-    examples    : List String               -- example literals
 ```
 
 ---

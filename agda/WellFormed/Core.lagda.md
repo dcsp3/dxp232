@@ -37,7 +37,7 @@ That’s great for expressing OpenAPI-like documents, but it permits contradicto
 - If `type = array`, then `items` must be present, and object-specific fields must be empty.
 - If `type` is primitive, then both array/object fields must be empty.
 
-This mirrors the “structural validity” you would expect from an OpenAPI-shaped schema in our subset. It intentionally does not attempt to validate `enum`, `default`, or `examples` against the schema type, since those are semantic/value-level concerns (handled later).
+This mirrors the “structural validity” you would expect from an OpenAPI-shaped schema in our subset. It intentionally does not attempt to enforce non-structural best practices (handled later).
 
 ```agda
 data WFSchema : Schema → Set where

@@ -13,11 +13,6 @@ class Schema:
     required: List[str]
     items: Optional["Schema"]
 
-    enum: Optional[List[str]]
-    default: Optional[str]
-    description: Optional[str]
-    examples: List[str]
-
 # Schema ref
 @dataclass
 class SchemaRef:
