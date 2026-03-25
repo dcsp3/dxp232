@@ -1,6 +1,6 @@
 import yaml
 from translate import translate_api
-from printer import print_api_module  # adjust if different filename
+from printer import print_api_module
 
 with open("test.yaml") as f:
     spec = yaml.safe_load(f)
