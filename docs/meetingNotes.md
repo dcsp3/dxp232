@@ -159,3 +159,11 @@ No meeting
 - Got feedback on the initial draft of the report and advice on how to refine the remaining sections
 - Make sure to explicitly highlight the most challenging technical sections of the project within the report
 - Debriefed for the final wrap-up meeting next Tuesday
+
+---
+
+## Week 10 (24/3) - Wrap-up Meeting
+
+- Discussed the project as a whole, talking about achievements and what I learnt
+- Talked about using the `{# TERMINATING #}` pragma in my code and if it's better to inline proofs to avoid using it altogether
+- Received more feedback on the report draft, specifically asked to highlight and label challenges and add more examples and justification of choices
