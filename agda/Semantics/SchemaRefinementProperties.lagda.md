@@ -291,65 +291,13 @@ PropsRefine-respects-lookup
 
 ---
 
-### 2.2 Composing property refinement witnesses
-
-Transitivity for objects needs us to chain field-wise refinement across an intermediate property list.
-
-If `ps` refines `qs`, and `qs` refines `rs`, then `ps` refines `rs`. For each field in `ps`, we first use the `ps → qs` witness to find the matching field in `qs`, then use 2.1 to push that same lookup through the `qs → rs` witness, and finally compose the two schema refinements.
-
-```agda
-PropsRefine-trans :
-    (transCo : ∀ {a b c} → Schema⊑Co a b → Schema⊑Co b c → Schema⊑Co a c)
-  → ∀ {ps qs rs}
-  → PropsRefine Schema⊑Co ps qs
-  → PropsRefine Schema⊑Co qs rs
-  → PropsRefine Schema⊑Co ps rs
-
--- Base case: no fields in ps so refinement holds trivially
-PropsRefine-trans transCo {ps = []} tt _ = tt
-
--- Inductive case: compose refinement for the head field and recurse on the tail
-PropsRefine-trans transCo
-  {ps = (k0 , s0) :: ps'} {qs = qs} {rs = rs}
-  ((t0 , (lkQ , srST)) , tailPQ)
-  prQR
-  =
-    (u0 , (lkR , srSU))
-    , PropsRefine-trans transCo tailPQ prQR
-  where
-    -- push the lookup for key k0 from qs into rs
-    pushedQR :
-      Σ Schema (λ u → (lookupProp k0 rs ≡ just u) × (Schema⊑Co t0 u))
-    pushedQR = PropsRefine-respects-lookup prQR lkQ
-
-    u0 : Schema
-    u0 = fst pushedQR
-
-    lkR : lookupProp k0 rs ≡ just u0
-    lkR = fst (snd pushedQR)
-
-    srTU : Schema⊑Co t0 u0
-    srTU = snd (snd pushedQR)
-
-    -- s0 ⊑ t0 and t0 ⊑ u0 gives s0 ⊑ u0.
-    srSU : Schema⊑Co s0 u0
-    srSU = transCo srST srTU
-```
-
----
-
-### 2.3 Transitivity of schema refinement
-
+### 2.2 Transitivity of schema refinement
 
 Transitivity is proved by structural recursion on the first refinement witness. Primitive and array cases are immediate. The object case composes field-wise refinement using `PropsRefine-trans`, and composes the required-key condition using `⊆-trans`.
 
 ```agda
-{-# TERMINATING #-}
-
 ⊑Co-trans : ∀ {s t u} → Schema⊑Co s t → Schema⊑Co t u → Schema⊑Co s u
 ```
-
-Recursion decreases on the first `Schema⊑Co` witness. In the object case, the recursive calls are made only for field schemas via `PropsRefine-trans`, which are strict subcomponents. Agda cannot see this higher-order decrease, hence we use `{-# TERMINATING #-}`.
 
 ### Helper Lemmas
 
@@ -442,8 +390,26 @@ array≢object ()
   (⊑-object wfT' wfU tyTObj' tyUObj prTU reqTU)
   =
     ⊑-object wfS wfU tySObj tyUObj
-    (PropsRefine-trans ⊑Co-trans prST prTU)
-    (⊆-trans reqST reqTU)
+      (PropsRefine-trans prST prTU)
+      (⊆-trans reqST reqTU)
+  where
+    PropsRefine-trans : ∀ {ps qs rs}
+       → PropsRefine Schema⊑Co ps qs
+       → PropsRefine Schema⊑Co qs rs
+       → PropsRefine Schema⊑Co ps rs
+    PropsRefine-trans {ps = []} tt _ = tt
+    PropsRefine-trans {ps = (k , s) :: ps'}
+       ((t , (lkQ , srST)) , tailPQ)
+       prQR
+       =
+         (u , (lkR , srSU))
+         , PropsRefine-trans tailPQ prQR
+      where
+        pushedQR = PropsRefine-respects-lookup prQR lkQ
+        u    = fst pushedQR
+        lkR  = fst (snd pushedQR)
+        srTU = snd (snd pushedQR)
+        srSU = ⊑Co-trans srST srTU
 ```
 
 ---
