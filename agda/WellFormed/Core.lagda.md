@@ -11,10 +11,6 @@ The syntax is intentionally permissive: it lets us *write down* any OpenAPI-shap
 - **Semantics** (later): what it *means*
 - **Compatibility** (later): how meaning behaves under evolution (request vs response)
 
-This module is deliberately conservative. It does not enforce best practices or “nice-to-have” constraints like naming conventions, examples matching types, default values being valid instances, etc. Those are either:
-- tooling concerns, or
-- semantic concerns (and belong in the next layer).
-
 ```agda
 module WellFormed.Core where
 
@@ -115,8 +111,6 @@ The judgement `WFPath path params` enforces structural coherence between a path 
 3. **No duplicate placeholders**: each `{x}` appears at most once in the path template.
 
 These constraints ensure the path template and its declared path parameters describe the same set of path variables. This mirrors the OpenAPI requirement that template expressions in a path MUST correspond to declared `in: path` parameters of the same name.
-
->This judgement does not enforce parameter typing (handled by `WFParameter`) and does not impose best practices or behavioural routing properties. It exists solely to rule out structurally incoherent path/parameter combinations before semantics and compatibility reasoning.
 
 ```agda
 sameLoc : ParamLocation → ParamLocation → Bool
@@ -256,5 +250,4 @@ data WFAPI : API → Set where
 
 ---
 
-Well-formedness serves as the boundary between raw syntax and meaningful specifications. This allows us to restrict all semantic definitions to well-formed APIs from this point onward.
-
+Well-formedness serves as the boundary between raw syntax and meaningful specifications.

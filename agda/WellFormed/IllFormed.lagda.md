@@ -269,5 +269,3 @@ data APIIllFormed : API → Set where
     → HasDuplicate (endpointKeys (API.paths api))
     → APIIllFormed api
 ```
-
-These witnesses are meant to be used by the decidable checkers: return a well-formedness proof on success, otherwise return one of the witnesses defined here.
