@@ -1,10 +1,10 @@
 # API Refinement
 
-An API packages together all endpoints and reusable schemas that make up a specification.
+An API consists of the endpoints and reusable component schemas that make up a specification.
 
-We define API refinement structurally. An API refines another when:
+We define API refinement structurally. A new API refines an old one when:
 - every declared component schema evolves safely, and
-- every existing endpoint continues to behave safely under evolution.
+- every existing endpoint is preserved with compatible behaviour.
 
 ```agda
 module Semantics.APIRefinement where
@@ -22,17 +22,13 @@ open import Semantics.EndpointRefinement
 open Σ using (fst ; snd)
 ```
 
-Since APIs are collections rather than single objects, refinement is defined by alignment via keys:
-- components are matched by their name,
-- endpoints are matched by their route and method.
-
-The definition lifts the refinement relations already established for schemas and endpoints to the top level.
+Since APIs are collections rather than single values, refinement is defined by matching entries by key:
+- components are matched by name,
+- endpoints are matched by route and method.
 
 ## 1. Component Lookup
 
 Component schemas are aligned by their declared name.
-
-We therefore define lookup over the `components` list by matching on the component key (`String`). This mirrors the lookup functions used at lower layers and will be used to align component schemas across API versions.
 
 ```agda
 lookupComponent :
@@ -122,9 +118,6 @@ lookupEndpoint r m (e :: es)
 ...   | yes _ = just e
 ```
 
-Lookup will be used to align endpoints across API versions.
-We now establish its basic structural properties.
-
 ---
 
 ### 2.1 Lookup of the head element
@@ -198,9 +191,6 @@ lookupEndpoint→∈ {es = []} ()
 
 ## 3. Component Refinement
 
-Components are aligned by name.
-For each old component, the new API must provide a schema that refines it (covariantly). Extra components in the new API are allowed.
-
 ```agda
 Components⊑ :
   List (String × Schema)
@@ -219,8 +209,6 @@ Components⊑ ((k , s) :: cs) new =
 ---
 
 ## 4. Endpoint List Refinement
-
-For each old endpoint, the new API must provide a matching endpoint that refines it. Extra endpoints in the new API are allowed.
 
 ```agda
 Endpoints⊑ :

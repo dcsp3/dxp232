@@ -1,15 +1,8 @@
 # API Refinement Properties
 
-Having defined API refinement, we now establish its basic algebraic structure.
-
-As with schema and endpoint refinement, the goal is to show that API refinement forms a preorder:
-
-- Reflexivity: every well-formed API safely refines itself.
-- Transitivity: safe API evolutions compose.
-
-These properties justify treating API refinement as a principled notion of backwards-compatible evolution. In particular, they ensure that compatibility is stable under multi-step version changes.
-
-All proofs proceed structurally, lifting the corresponding results from schema and endpoint refinement to the API level.
+We show that API refinement is:
+- **reflexive**: on well-formed APIs, and
+- **transitive**.
 
 ```agda
 module Semantics.APIRefinementProperties where
@@ -39,13 +32,11 @@ open Σ using (fst ; snd)
 
 Every well-formed API safely refines itself.
 
-Reflexivity follows structurally from reflexivity of schema and endpoint refinement. We first establish reflexivity for component lists and endpoint lists, then combine them into the main API-level result.
-
 ---
 
 ### 1.1 Component reflexivity
 
-Component refinement iterates over the old component list and aligns entries via lookup. Reflexivity therefore follows by recursion over the list, using `⊑Co-refl` for schemas.
+Component refinement proceeds by aligning entries via lookup, so reflexivity follows by recursion over the list.
 
 ```agda
 Components⊑-weaken :
@@ -90,7 +81,6 @@ Components⊑-refl
 ### 1.2 Endpoint Reflexivity
 
 Endpoint list refinement mirrors the component case.
-We prove reflexivity by recursion over the endpoint list, using `Endpoint⊑-refl` and a weakening lemma to skip fresh heads during lookup.
 
 ```agda
 Endpoints⊑-weaken :
@@ -132,8 +122,6 @@ Endpoints⊑-refl
 
 ### 1.3 API Reflexivity
 
-API refinement is reflexive when both component and endpoint refinement are reflexive.
-
 ```agda
 API⊑-refl :
   ∀ {a}
@@ -155,21 +143,15 @@ API⊑-refl
 
 ## 2. Transitivity
 
-API refinement composes across versions.
+API refinement composes across intermediate APIs.
 
-If an API `a₀` safely refines `a₁`, and `a₁` safely refines `a₂`, then `a₀` safely refines `a₂`.
-
-As in the lower layers, the proof proceeds structurally. We first establish transitivity for component refinement and endpoint refinement over lists, then combine them into the main API-level result.
-
-The key step for components is transporting lookup across an intermediate list: if a component is preserved from `a₀` to `a₁`, and from `a₁` to `a₂`, then it is preserved from `a₀` to `a₂`.
+If `a₀ ⊑ a₁`, and `a₁ ⊑ a₂`, then `a₀ ⊑ a₂`.
 
 ---
 
-### 2.1 Transporting component lookup
+### 2.1 Component lookup
 
-To compose component refinement, we must transport lookup across an intermediate component list.
-
-If a component `(k , s)` appears in `cs`, and `cs ⊑ ds`, then looking up `k` in `ds` yields a schema `t` such that `s` refines `t`.
+To compose component refinement, we transport lookup across an intermediate list.
 
 ```agda
 Components⊑-lookup :
@@ -198,8 +180,6 @@ Components⊑-lookup
 ---
 
 ### 2.2 Component transitivity
-
-Component refinement composes by transporting each old component through the intermediate API and composing schema refinement.
 
 ```agda
 Components⊑-trans :
@@ -232,9 +212,7 @@ Components⊑-trans
 
 ---
 
-### 2.3 Transporting endpoint lookup
-
-If an endpoint is preserved from `es` to `fs`, and we can look it up in `es`, then it can also be looked up in `fs`, with a refining endpoint.
+### 2.3 Endpoint lookup
 
 ```agda
 Endpoints⊑-lookup :
@@ -267,8 +245,6 @@ Endpoints⊑-lookup
 ---
 
 ### 2.4 Endpoint transitivity
-
-Endpoint refinement over lists composes in the same way: each old endpoint is transported through the intermediate API and its refinement witnesses are composed using `Endpoint⊑-trans`.
 
 ```agda
 Endpoints⊑-trans :
@@ -309,8 +285,6 @@ Endpoints⊑-trans
 
 ### 2.5 API transitivity
 
-Finally, API refinement composes when both component refinement and endpoint refinement compose.
-
 ```agda
 API⊑-trans :
   ∀ {a₀ a₁ a₂}
@@ -333,7 +307,7 @@ API⊑-trans
 
 ## 3. API refinement as a preorder
 
-We now package API refinement as a preorder over well-formed APIs.
+Reflexivity depends on well-formedness, so we define the preorder over APIs paired with `WFAPI`.
 
 ```agda
 WFAPIₛ : Set
@@ -343,7 +317,7 @@ _⊑APIWF_ : WFAPIₛ → WFAPIₛ → Set
 (a , _) ⊑APIWF (b , _) = API⊑ a b
 ```
 
-Reflexivity and transitivity follow directly from the previously established lemmas.
+Reflexivity and transitivity follow from the previous results.
 
 ```agda
 API⊑-preorder : IsPreorder _⊑APIWF_

@@ -1,15 +1,9 @@
 # Endpoint Refinement Properties
 
-Endpoint refinement captures when one endpoint can safely replace another.
-Having defined the relation itself, we now establish its basic algebraic structure.
+We show that endpoint refinement is:
 
-In particular, we show that `Endpoint⊑` is a **preorder**:
-
-- it relates every endpoint to itself
-- and compatible evolutions compose
-
-These results justify treating endpoint refinement as a principled notion
-of safe API evolution.
+- **reflexive**: on well-formed endpoints, and
+- **transitive**.
 
 ```agda
 module Semantics.EndpointRefinementProperties where
@@ -33,15 +27,15 @@ open Σ using (fst ; snd)
 
 ## 1. Reflexivity
 
-Every well-formed endpoint safely refines itself.
+Every well-formed endpoint refines itself.
 
-We prove this by establishing reflexivity for each component, then combining them.
+The proof is by component-wise reflexivity.
 
 ---
 
 ### 1.1 Parameter reflexivity
 
-Parameter refinement is defined structurally over lists, so reflexivity is obtained by simple recursion.
+Parameter refinement is defined structurally over lists, so reflexivity follows by recursion.
 
 ```agda
 OldParamsPreserved-weaken :
@@ -100,8 +94,7 @@ Params⊑Contra-refl {ps = p :: ps}
 
 ### 1.2 Body reflexivity
 
-Body refinement is contravariant, but reflexivity follows directly from
-reflexivity of schema refinement.
+Body refinement is contravariant; reflexivity follows from schema reflexivity.
 
 ```agda
 Body⊑Contra-refl :
@@ -119,7 +112,7 @@ Body⊑Contra-refl (wf-hasBodyP wfS) = ⊑Co-refl wfS
 
 ### 1.3 Response reflexivity
 
-Responses are checked covariantly. Reflexivity follows by recursion, using a weakening lemma to show that adding a fresh head response does not affect lookups for the tail statuses.
+Response refinement is covariant and follows by recursion.
 
 ```agda
 Resps⊑Co-weaken :
@@ -161,9 +154,6 @@ Resps⊑Co-refl {rs = response st s :: rs}
 
 ### 1.4 Endpoint reflexivity
 
-Finally, reflexivity of `Endpoint⊑` follows by combining the component
-reflexivity lemmas.
-
 ```agda
 Endpoint⊑-refl :
     ∀ {e}
@@ -184,16 +174,13 @@ Endpoint⊑-refl {e} wf@(wf-endpoint _ _ uniqParams wfBody wfResps uniqResps) =
 
 ## 2. Transitivity
 
-If `e₀` refines to `e₁` and `e₁` refines to `e₂`, then `e₀` refines to `e₂`.
+Endpoint refinement composes across intermediate endpoints.
 
-As in reflexivity, we prove this component-wise and then combine the results.
+If `e₀ ⊑ e₁` and `e₁ ⊑ e₂`, then `e₀ ⊑ e₂`.
 
 ---
 
 ### 2.1 Parameter transitivity
-
-At the level of a single parameter, transitivity is immediate: all fields are
-checked by equality (or weakening of required), and equality composes.
 
 ```agda
 ReqWeakens-trans :
@@ -225,12 +212,6 @@ Param⊑Contra-trans
 ---
 
 ### 2.2 Parameter list transitivity
-
-`Params⊑Contra` is defined by iterating over the old list and using lookup to
-align each old parameter with a corresponding new one. To compose two such
-proofs, we need one small helper: if a parameter can be looked up in the
-intermediate list, then the refinement proof for that intermediate list tells
-us how it maps forward.
 
 ```agda
 OldParamsPreserved-lookup :
@@ -319,7 +300,7 @@ Params⊑Contra-trans {ps} {qs} {rs}
 
 ### 2.3 Body transitivity
 
-Body refinement composes by composition of schema refinement.
+Body refinement composes via schema refinement.
 
 ```agda
 Body⊑Contra-trans :
@@ -421,8 +402,6 @@ Resps⊑Co-trans {rs = response st s :: rs}
 
 ### 2.5 Endpoint transitivity
 
-Endpoint refinement composes across endpoints: if e₀ ⊑ e₁ and e₁ ⊑ e₂, then e₀ ⊑ e₂.
-
 ```agda
 Endpoint⊑-trans :
   ∀ {e₀ e₁ e₂}
@@ -450,18 +429,14 @@ Endpoint⊑-trans
 
 ## 3. Endpoint refinement as a preorder
 
-Reflexivity of `Endpoint⊑` requires a well-formedness proof.
-So, as with schemas, we define the preorder over endpoints paired with their `WFEndpoint` witness.
+Reflexivity depends on well-formedness, so we define the preorder over endpoints paired with `WFEndpoint`.
 
 ```agda
--- an endpoint packaged together with a proof that it is well-formed
 WFEndpointₛ : Set
 WFEndpointₛ = Σ Endpoint WFEndpoint
 
--- lift Endpoint⊑ to well-formed endpoints
 _⊑EndpointWF_ : WFEndpointₛ → WFEndpointₛ → Set
 (e , _) ⊑EndpointWF (e' , _) = Endpoint⊑ e e'
-
 
 Endpoint⊑-preorder : IsPreorder _⊑EndpointWF_
 Endpoint⊑-preorder = record

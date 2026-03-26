@@ -25,11 +25,7 @@ The core semantic judgement is **covariant schema refinement**.
 > `new` is a safe replacement for `old` in covariant (client-observed) positions.
 
 This judgement is defined by constructors corresponding to the different schema shapes.
-Contravariant refinement (used for requests) will later be obtained by flipping the direction
-of this relation using variance.
-
-Before introducing the refinement rules themselves, we define a small amount of
-supporting machinery used by the object case.
+Contravariant refinement (used for requests) will later be obtained by flipping the direction of this relation using variance.
 
 ```agda
 lookupProp : String → List (String × Schema) → Maybe Schema
@@ -50,8 +46,6 @@ PropsRefine R ((k , so) :: oldProps) newProps =
   × PropsRefine R oldProps newProps
 ```
 
-With these definitions in place, we can now define covariant schema refinement itself.
-
 ```agda
 data Schema⊑Co : Schema → Schema → Set where
 ```
@@ -62,15 +56,7 @@ data Schema⊑Co : Schema → Schema → Set where
 
 ### 2.1 Primitive schemas
 
-Primitive schemas refine conservatively.
-
-For now, a primitive schema safely refines another only when they share the same base type.
-This reflects the fact that a client expecting a particular primitive value (e.g. a string)
-cannot safely consume a different primitive type.
-
-More permissive refinements (such as allowing `integer ⊑ number`) can be added later as
-additional constructors, without changing the overall structure.
-
+A primitive schema refines another only when they share the same base type.
 
 ```agda
   ⊑-prim :
@@ -87,13 +73,6 @@ additional constructors, without changing the overall structure.
 
 Array schemas refine covariantly when their item schemas refine covariantly.
 
-Intuitively, a client that can consume elements of a certain shape can also
-consume arrays whose elements are refined versions of that shape.
-
-Well-formedness ensures that array schemas always carry an item schema, so
-this rule is structurally well-defined.
-
-
 ```agda
   ⊑-array :
       ∀ {s t si ti}
@@ -109,26 +88,9 @@ this rule is structurally well-defined.
 
 ### 2.3 Object schemas
 
-Objects are the main non-trivial case of schema refinement.
+In covariant positions (responses), refinement must preserve everything that existing clients might read. In particular, a client may read any field, but can only rely on presence for fields listed in `required`. Removing or changing such fields would be breaking.
 
-In covariant positions (responses), refinement must preserve everything that existing
-clients might read. In particular, a client may read any field, but can only rely on presence
-for fields listed in `required`. Removing or changing such fields would therefore be breaking.
-
-For this reason, covariant object refinement enforces the following conditions:
-
-- Preservation of properties: every property present in the old object must still
-be present in the new object.
-- Recursive refinement: for each preserved property, the corresponding field schema
-must itself refine covariantly.
-- Extensibility: the new object may introduce additional properties, which existing
-clients can safely ignore.
-- Preservation of requiredness: every required field in the old object remains required in the new object.
-
-These conditions are expressed using the auxiliary predicate `PropsRefine`, which states
-that all properties of one object are preserved and related by a given schema relation.
-Using this predicate, covariant object refinement is defined as a constructor of
-`Schema⊑Co`.
+Covariant object refinement therefore requires that every old property is still present in the new object with a refining schema (`PropsRefine`), and that the required set only grows.
 
 ```agda
   ⊑-object :
@@ -148,12 +110,8 @@ Using this predicate, covariant object refinement is defined as a constructor of
 
 ## 3. Variance-aware schema refinement
 
-Now that we have defined schema refinement in one direction, we can recover full notion using variance.
-
-- For covariant positions (such as responses), refinement is exactly `Schema⊑Co`.
-- For contravariant positions (such as requests), refinement is obtained by reversing the direction.
-
-We capture this with a simple variance-indexed wrapper.
+- For covariant positions (responses), refinement is exactly `Schema⊑Co`.
+- For contravariant positions (requests), refinement is obtained by reversing the direction.
 
 ```agda
 Schema⊑ : Variance → Schema → Schema → Set

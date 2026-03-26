@@ -1,13 +1,9 @@
 # Schema Refinement Properties
 
-This module contains the core metatheory for covariant schema refinement. In particular,
-we show that `Schema⊑Co` forms a **preorder**:
+We show that covariant schema refinement is:
 
-- **reflexive**: every well-formed schema refines itself
-- **transitive**: refinements compose
-
-These properties are essential for reasoning about multi-step API evolution and later
-support the soundness argument for an operational evolution calculus.
+- **reflexive**: on well-formed schemas, and
+- **transitive**.
 
 ---
 
@@ -25,20 +21,15 @@ open Σ using (fst ; snd)
 
 ## 1. Reflexivity
 
-Reflexivity states that every well-formed schema is a safe replacement for itself.
+Every well-formed schema safely refines itself.
 
 ```agda
 ⊑Co-refl : ∀ {s} → WFSchema s → Schema⊑Co s s
 ```
 
-We prove this by structural recursion on the well-formedness derivation. The primitive
-and array cases are straightforward. The object case requires a small helper lemma
-showing that each property can be looked up in its own property list, allowing us to
-build the `PropsRefine` witness.
-
 ### 1.1 Lookup helpers
 
-The object case relies on the fact that looking up a key at the head of an association list succeeds.
+For objects, we first record some basic facts about property lookup.
 
 ```agda
 -- Lookup succeeds when the key is at the head of the list
@@ -90,16 +81,9 @@ lookupProp-wf {k} {s} {(k' , s') :: ps} (all::_ wfS wfRest) lk
 
 ### 1.2 Reflexivity for property refinement
 
-To construct the object refinement witness in the reflexivity proof, we show that a
-property list refines itself (field-by-field) under `Schema⊑Co`.
+To build the object case of `⊑Co-refl`, we show that a well-formed property list refines itself field-by-field.
 
-This relies on the well-formedness invariant that object property keys are unique, so the list behaves like a proper property map. Without uniqueness, refinement would become order-sensitive and could misrepresent OpenAPI objects.
-
-Specifically, we need a a witness that says:
-- each key in props can be looked up in props
-- and its schema refines itself
-
-and that is what `PropsRefine-refl` gives us.
+This relies on uniqueness of property keys, so that lookup behaves deterministically.
 
 ```
 -- If ps refines (k0 , s0) :: target, then inserting a fresh (k , s)
@@ -220,32 +204,15 @@ PropsRefine-refl
 
 ## 2. Transitivity
 
-The refinement relation `Schema⊑Co` is intended to model safe evolution of schemas. Reflexivity already tells us that “no change” is always safe. The next structural property we need is transitivity:
+Schema refinement composes across intermediate schemas.
 
->If `s` safely refines `t`, and `t` safely refines `u`, then `s` safely refines `u`.
-
-This allows us to compress those step-by-step witnesses into a single compatibility guarantee for the whole change.
-
-We prove transitivity by structural recursion on the refinement witness.
-
-- For primitive schemas, transitivity reduces to transitivity of the underlying type equality.
-- For arrays, it reduces to transitivity of refinement on the item schema.
-- For objects, we must compose both field-wise refinement and the condition on required fields.
-
-Only the object case needs helper lemmas. Object refinement consists of a `PropsRefine Schema⊑Co` witness, ensuring every old field exists in the new object with a refining schema, together with a subset condition `required old ⊆ required new`, ensuring required keys may only grow.
-
-To compose object refinement, we therefore need transitivity of subset witnesses (`⊆-trans`) and a lemma that composes `PropsRefine` witnesses by transporting lookups across an intermediate property list.
-
-With these helpers in place, the main transitivity proof follows by direct structural recursion.
+If `s ⊑ t` and `t ⊑ u`, then `s ⊑ u`.
 
 ---
 
 ### 2.1 Transporting lookups across property refinement
 
-To compose object refinement witnesses, we must reason about individual fields.
-
-If a list of properties `ps` refines into `qs`, then every property appearing in `ps` must also appear in `qs` with a refining schema.
-In particular, if looking up a key `k` in `ps` succeeds, then looking up the same key in `qs` must also succeed, and the corresponding schemas must be related by `Schema⊑Co`.
+To compose object refinement, we first show that successful lookup is preserved across `PropsRefine`.
 
 ```agda
 PropsRefine-respects-lookup :
@@ -254,10 +221,8 @@ PropsRefine-respects-lookup :
   → lookupProp k ps ≡ just s
   → ∃ (λ t → (lookupProp k qs ≡ just t) × (Schema⊑Co s t))
 
--- Base case: no fields in ps, so lookup cannot happen
 PropsRefine-respects-lookup {ps = []} tt ()
 
--- Inductive case: compare the lookup key with the head key
 PropsRefine-respects-lookup
   {k = k} {s = s} {ps = (k0 , s0) :: ps'} {qs = qs}
   ((t0 , (lkQ , srST)) , tailPQ)
@@ -292,8 +257,6 @@ PropsRefine-respects-lookup
 ---
 
 ### 2.2 Transitivity of schema refinement
-
-Transitivity is proved by structural recursion on the first refinement witness. Primitive and array cases are immediate. The object case composes field-wise refinement using `PropsRefine-trans`, and composes the required-key condition using `⊆-trans`.
 
 ```agda
 ⊑Co-trans : ∀ {s t u} → Schema⊑Co s t → Schema⊑Co t u → Schema⊑Co s u
@@ -416,11 +379,9 @@ array≢object ()
 
 ## 3. Schema refinement as a preorder
 
-So far, we have shown that schema refinement is reflexive and transitive. One caveat is that reflexivity only holds for well-formed schemas, since the proof `⊑Co-refl` requires a `WFSchema` witness.
+Reflexivity requires a `WFSchema` witness, so the preorder is defined over well-formed schemas rather than raw schemas.
 
-For this reason, we cannot define the preorder over raw schemas. Instead, we take the carrier to be the type of well-formed schemas: a schema paired with a proof that it is well-formed. We then lift `Schema⊑Co` to act on these pairs, ignoring the proof component.
-
-With this choice of carrier, schema refinement satisfies the axioms of a preorder.
+We therefore take the carrier to be schemas paired with well-formedness proofs, and lift `Schema⊑Co` to this type.
 
 ```agda
 -- a schema packaged together with a proof that it is well-formed
@@ -438,5 +399,3 @@ Schema⊑Co-preorder = record
                       ⊑Co-trans st tu }
   }
 ```
-
-This result lets us treat schema refinement as a preorder structure in later semantic arguments, without repeatedly unpacking the underlying reflexivity and transitivity proofs.

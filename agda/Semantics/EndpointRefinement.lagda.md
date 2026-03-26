@@ -2,20 +2,12 @@
 
 Schema refinement gives us a notion of safe evolution at the level of data. Now we lift that idea to whole endpoints.
 
-An endpoint is more than a schema: it has a route, a method, parameters, an optional request body, and a collection of responses. If we change any of these, we may change what clients can send or what they observe.
-
-The key question is:
-
-> When is a new endpoint a safe replacement for an old one?
-
-The answer follows the same variance discipline we used earlier:
+An endpoint has a route, a method, parameters, an optional request body, and a collection of responses. The variance discipline follows schema refinement:
 
 - Things the **server consumes** (parameters and request bodies) are checked
   **contravariantly**.
 - Things the **client observes** (responses) are checked **covariantly**.
 - The structural identity of the endpoint (route and method) must not change.
-
-This file formalises that judgement.
 
 ---
 
@@ -36,25 +28,11 @@ open Σ using (fst ; snd)
 
 ## 1. Endpoint refinement
 
-At the top level we define a relation `Endpoint⊑ : Endpoint → Endpoint → Set` where:
+`Endpoint⊑ eOld eNew` means 'eNew' safely refines 'eOld'.
 
-> `Endpoint⊑ eOld eNew` means 'eNew' safely refines 'eOld'.
-
-Endpoint refinement needs two things:
-
-1. a variance-aware use of schema refinement (requests contra, responses co)
-2. a way to align parameters and responses across two endpoints
-
-For the second part we use simple lookup functions, using decidable
-equalities on `ParamLocation` and `Status`.
-
-As with schema refinement, we only relate well-formed endpoints. The
-well-formedness invariant ensures that parameter keys and response status
-codes are unique, so that the lookup-based definitions below are unambiguous.
+We only relate well-formed endpoints. The well-formedness invariant ensures that parameter keys and response status codes are unique, so the lookup-based definitions below are unambiguous.
 
 ### 1.1 Lookup helpers
-
-We align list-based endpoint components by looking up corresponding entries.
 
 Parameters are identified by their `(location , name)` pair.
 
@@ -82,11 +60,6 @@ lookupResp st (response st' s :: rs) with Status≟ st st'
 
 ### 1.2 Lookup computation lemmas
 
-The refinement relations below use lookup to align list-based components.
-To make the properties proofs go through, we record some general facts about the behaviour of parameter lookup.
-
-Together, these lemmas allow us to reason about lookup results constructively in later proofs, for example by transporting lookup results across list extensions or by extracting information about the parameter returned by a successful lookup.
-
 ```agda
 lookupParam-here :
   ∀ {p ps}
@@ -105,7 +78,7 @@ lookupParam-here {p} {ps}
 ```
 
 ```agda
--- skip a head parameter whose (location,name) cannot match (ℓ,k)
+-- Skip a head parameter whose (location,name) cannot match (ℓ,k)
 lookupParam-there :
     ∀ {h ℓ k ps p}
   → (Parameter.location h , Parameter.name h) ≢ (ℓ , k)
@@ -215,7 +188,6 @@ lookupParam-key {p} {q} {new} lkeq =
 ```
 
 ```agda
--- Transform a lookup by using the parameter's own location and name fields
 lookupParam-self :
   ∀ {ℓ k p ps}
   → lookupParam ℓ k ps ≡ just p
@@ -258,7 +230,7 @@ lookupResp-here {st} {s} {rs}
   with Status≟ st st | Status≟-refl {st}
 ... | yes refl | refl = refl
 
--- skip a head response whose status cannot match the one we are looking up
+-- Skip a head response whose status cannot match the one we are looking up
 lookupResp-there :
     ∀ {st st₀ s₀ rs t}
   → st₀ ≢ st
@@ -271,7 +243,6 @@ lookupResp-there {st} {st₀} {s₀} {rs} {t} st₀≢st ih
 ```
 
 ```agda
--- Extract well-formedness from a response lookup
 lookupResp-wf :
     ∀ {st t} {rs : List Response}
   → All WFResponse rs
@@ -296,37 +267,15 @@ lookupResp→∈ {st} {rs = response st' s :: rs} lk
 lookupResp→∈ {rs = []} ()
 ```
 
-Endpoint refinement will be defined by matching components via lookup, then applying the relevant variance-aware schema check, similar to schema refinement.
-
 ---
 
 ## 2. Component judgements
 
-Endpoint refinement is built out of three smaller relations:
-
-- parameter refinement (request-facing, so contravariant)
-- body refinement (request-facing, so contravariant)
-- response refinement (client-observed, so covariant)
-
-We define these first, then combine them into the main endpoint judgement.
+Endpoint refinement is built out of three smaller relations: parameter refinement, body refinement, and response refinement.
 
 ### 2.1 Parameters
 
-A parameter is identified by its `(location , name)` pair.
-
-Since parameters are consumed by the server, they are checked contravariantly. Contravariant refinement ensures that the new endpoint accepts at least all inputs that were valid for the old endpoint.
-
-This requires two conditions:
-
-1. **Preservation of existing inputs**  
-   Every parameter accepted by the old endpoint must still be accepted by the new endpoint, with the same base type and without strengthening its requiredness.
-
-2. **No new required inputs**
-   The new endpoint must not introduce any required parameter that was not already required in the old endpoint.
-
-Together, these conditions ensure that every request that was valid for the old endpoint remains valid for the new endpoint.
-
-Since parameters in our syntax carry only a `Base` schema, we require the base type to remain unchanged.
+Since parameters are consumed by the server, they are checked contravariantly. The new endpoint must accept at least what the old one did, and must not introduce new required parameters.
 
 ```agda
 ReqWeakens : Bool → Bool → Set
@@ -385,7 +334,6 @@ Body⊑Contra {PATCH}  {PATCH}  refl (HasBodyP s) (HasBodyP t) = Schema⊑ Contr
 
 ### 2.3 Responses
 
-Responses are checked covariantly.
 For each status code present in the old endpoint, the new endpoint must still
 provide a schema for that status, and it must refine the old schema.
 
@@ -403,8 +351,7 @@ Resps⊑Co (response st s :: rs) new =
 
 ### 2.4 Endpoint refinement
 
-Finally, endpoint refinement pins the structural identity of the endpoint (route and method)
-and then combines the three component checks.
+Endpoint refinement pins the route and method, then combines the three component checks.
 
 ```agda
 data Endpoint⊑ : Endpoint → Endpoint → Set where
@@ -425,4 +372,3 @@ data Endpoint⊑ : Endpoint → Endpoint → Set where
           (Endpoint.responses eNew)
       → Endpoint⊑ eOld eNew
 ```
-
