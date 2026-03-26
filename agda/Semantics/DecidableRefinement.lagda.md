@@ -1,10 +1,10 @@
 # Decidable Refinement
 
-Given two well-formed specs, we either build a refinement proof or point to exactly what broke. Refinement and drift are two sides of the same coin.
+This module gives decision procedures for schema, endpoint, and API refinement.
 
-We work bottom-up: decide schema refinement first, then lift to endpoints (checking parameters, bodies, responses), then lift again to full APIs (aligning components and endpoints via lookup). At each level, we return either a proof (`inl`) or a drift witness (`inr`) explaining the specific failure.
+At each layer, the procedure either constructs a refinement proof or returns a drift witness explaining why refinement fails. The development proceeds bottom-up: schemas first, then endpoints, then whole APIs.
 
-Well-formedness is critical here: it guarantees unique keys, making all lookups deterministic.
+Well-formedness is crucial here, since unique keys make lookup deterministic.
 
 ```agda
 module Semantics.DecidableRefinement where
@@ -30,11 +30,15 @@ open Σ using (fst ; snd)
 
 ## 1. Schema Refinement
 
-Schemas refine covariantly. We recurse on shape: primitives check type equality, arrays recurse on item schemas, objects check properties and required-field subsets.
+Schema refinement is decidable by structural recursion on schema shape.
+
+- primitives compare base types
+- arrays recurse on item schemas
+- objects check property preservation and required-field inclusion
 
 ### 1.1 Property Refinement
 
-For objects, we walk the old properties and check that each one exists in the new schema with a covariant refinement. Failures get recorded as `PropertyFailure`, which we later convert to `SchemaDrift`.
+For object schemas, every property in the old schema must appear in the new schema with a covariantly refining schema. Failures are recorded explicitly and later converted into `SchemaDrift`.
 
 ### Helpers
 
@@ -90,7 +94,7 @@ propertyFailure→SchemaDrift tyS tyT
 
 ### Decision
 
-These are mutually recursive: property refinement needs schema checks, and schema refinement needs property checks for the object case.
+Property refinement and schema refinement are defined mutually because object refinement depends on property refinement and property refinement recursively calls schema refinement on nested schemas.
 
 ```agda
 mutual
@@ -207,15 +211,17 @@ mutual
 
 ## 2. Endpoint Refinement
 
-Endpoints decompose into four independent checks: parameters (contravariant), request body (contravariant), responses (covariant), and route/method identity. Each check either succeeds with a proof or fails with a specific `EndpointDrift` constructor.
+Endpoint refinement is decided componentwise.
+
+The route and method must match exactly. Parameters and request bodies are checked contravariantly, while responses are checked covariantly. Each local failure is converted into an `EndpointDrift` witness.
 
 ### 2.1 Parameter Refinement
 
-Parameters are contravariant, so we run two checks:
-- `OldParamsPreserved?`: every old parameter must survive into the new list with the same schema and without weakening the required flag
-- `NewRequiredSafe?`: no brand-new required parameters (new optional parameters are fine, and upgrading optional→required is caught by the first check)
 
-We then combine both witnesses via `Params⊑Contra?`.
+Parameter refinement is split into two checks:
+
+- every old parameter must still be present and safe
+- every new required parameter must already have been allowed before
 
 ### 2.1.1 `OldParamsPreserved?`
 
@@ -371,8 +377,9 @@ OldParamsPreserved? (p :: ps) new (uniq::_ p∉tail uniqTail)
 
 ### 2.1.2 `NewRequiredSafe?`
 
+This second pass checks that no new required parameter has been introduced.
+
 ```agda
--- Two ways new required parameters can break compatibility:
 data NewRequiredFailure (old new : List Parameter) : Set where
   NewRequiredParam :  -- brand new required param
       (ℓ : ParamLocation) (k : String) (p : Parameter)
@@ -546,8 +553,9 @@ NewRequiredSafe∔ old new uniq
 
 ### 2.1.3 Combining the Checks
 
+Parameter refinement succeeds only when both parameter checks succeed.
+
 ```agda
--- Run both sub-checks, pair their witnesses or return the first failure
 Params⊑Contra? :
   (old new : List Parameter)
   → Unique (paramKeys old)
@@ -563,7 +571,7 @@ Params⊑Contra? old new uniqOld uniqNew
 
 ### 2.2 Body Refinement
 
-Request bodies are contravariant in their schema. The check is straightforward: match constructors, recurse on schemas, or succeed trivially for `NoBody` cases.
+Request-body refinement is decided by matching body constructors and, where applicable, recursively checking the underlying schema contravariantly.
 
 ```agda
 data BodyDrift : ∀ {m} → Body m → Body m → Set where
@@ -609,7 +617,7 @@ Body⊑Contra? (HasBodyP s) (HasBodyP t) (wf-hasBodyP ws) (wf-hasBodyP wt)
 
 ### 2.3 Response Refinement
 
-Responses are covariant: every response in the old spec must be preserved in the new spec with a covariant schema change. We walk the old list, look up each status code in the new list, and check schema refinement recursively.
+Response refinement walks the old response list, requiring each status code to remain present with a covariantly refining schema.
 
 ```agda
 data RespFailure (old new : List Response) : Set where
@@ -682,7 +690,7 @@ Resps⊑Co? (response st s :: rs) new
 
 ### 2.4 Endpoint Refinement
 
-With all component checks in place, we run them in sequence: check route/method identity first, then parameters, body, and responses. Any failure gets converted to the appropriate `EndpointDrift` constructor.
+The endpoint decision procedure combines the preceding checks and converts any local failure into an EndpointDrift witness.
 
 ```agda
 -- Extract well-formedness facts from WFEndpoint
@@ -784,9 +792,11 @@ Endpoint⊑? e₀ e₁ wf₀ wf₁
 
 ## 3. API Refinement
 
-We now lift refinement decidability to whole APIs. Since endpoint and schema refinement are already decidable, this reduces to aligning components and endpoints via lookup and running recursive checks on matched entries. Failures get packaged into `Drift` witnesses that point to exactly what was removed or what changed.
+API refinement is decided by lifting the schema and endpoint procedures to component and path lists.
 
 ### 3.1 Components
+
+Component refinement walks the old component list, requiring each schema component to remain present with a covariantly refining schema.
 
 ```agda
 data ComponentFailure (old new : List (String × Schema)) : Set where
@@ -874,6 +884,8 @@ Components⊑? ((k , s) :: cs) new (uniq::_ k∉ uniqRest) (all::_ wfS wfRest) w
 ```
 
 ### 3.2 Endpoints
+
+Endpoint refinement over API path lists is decided in the same way, using `Endpoint⊑?` on matched endpoints.
 
 ```agda
 data EndpointFailure (old new : List Endpoint) : Set where
@@ -966,6 +978,8 @@ Endpoints⊑? (e :: es) new (uniq::_ e∉ uniqRest) (all::_ wfE wfRest) wfNew
 
 ### 3.3 Putting it together
 
+The final API-level procedure combines component refinement and endpoint refinement.
+
 ```agda
 -- Extract well-formedness facts from WFAPI
 wfAPI-components : ∀ {a} → WFAPI a → All WFSchema (values (API.components a))
@@ -1017,8 +1031,11 @@ API⊑? a₀ a₁ wf₀ wf₁
 
 ## 4. Main Result
 
-We now have a complete decision procedure for API refinement. Given two well-formed APIs, `API⊑?` either constructs a refinement proof or returns a concrete drift witness explaining the incompatibility.
+`API⊑?` is the decision procedure for API refinement.
 
-The result type `API⊑ a₀ a₁ ∔ Drift a₀ a₁` gives us both positive evidence (a refinement proof when compatible) and negative evidence (a structural witness explaining exactly what broke when incompatible).
+Given two well-formed APIs, it either returns:
 
-This is the algorithmic core of compatibility checking. In `Semantics.DriftProperties`, we combine this with soundness of drift (`Drift → ¬Refinement`) to obtain the standard `Dec (API⊑ a₀ a₁)` result.
+- a proof of refinement, or
+- a drift witness explaining the incompatibility
+
+This is the algorithmic core of compatibility checking.

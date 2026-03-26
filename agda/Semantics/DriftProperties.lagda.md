@@ -1,9 +1,12 @@
 # Drift Properties
 
-When refinement fails between two APIs, there's always a structural reason. Drift witnesses identify the specific breaking change that caused incompatibility. This file establishes the connection between drift and refinement failure.
+This module connects drift with refinement failure.
 
-We prove two key results: soundness (drift refutes refinement) and completeness (refinement failure produces drift). Together, these show that drift and refinement failure are logically equivalent for well-formed specs.
+We prove two directions:
+- soundness: drift witnesses refute refinement, and
+- completeness: refinement failure produces a drift witness.
 
+Together, these show that for well-formed APIs, drift is equivalent to refinement failure.
 ```agda
 module Semantics.DriftProperties where
 
@@ -31,11 +34,11 @@ open Σ using (fst ; snd)
 
 ## 1. Soundness
 
-Drift witnesses refute refinement. Each drift constructor corresponds to a violated refinement constraint, and the soundness proofs establish that drift and refinement are mutually exclusive.
+Drift witnesses refute refinement. 
+
+Each constructor of drift corresponds to a structural obligation required by refinement, so the proof proceeds by case analysis on the drift witness and the corresponding refinement derivation.
 
 ### 1.1. Schema Drift Soundness
-
-Schema drift refutes schema refinement. The proof proceeds by case analysis on both the drift witness and the refinement derivation. In each branch, we either derive a direct contradiction (a changed primitive type contradicting primitive refinement) or eliminate an impossible case using shape constraints from refinement.
 
 ```agda
 SchemaDriftSound : ∀ {s t} → SchemaDrift s t → ¬ Schema⊑Co s t
@@ -151,8 +154,6 @@ SchemaDriftSound (ShapeMismatch s≢t)
 ---
 
 ### 1.2. Endpoint Drift Soundness
-
-Endpoint drift refutes endpoint refinement. Each drift constructor corresponds to a violated refinement constraint: a changed route, a removed parameter, a new required parameter, or a response that was removed or narrowed.
 
 ```agda
 EndpointDriftSound : ∀ {e₀ e₁} → EndpointDrift e₀ e₁ → ¬ Endpoint⊑ e₀ e₁
@@ -273,8 +274,6 @@ EndpointDriftSound (ResponseDrift {e₀} {e₁} {st} {s₀} {s₁} lkOld lkNew s
 
 ### 1.3. API Drift Soundness
 
-API drift refutes API refinement. At this level, drift captures removed or incompatible components and endpoints.
-
 ```agda
 APIDriftSound : ∀ {a₀ a₁} → Drift a₀ a₁ → ¬ API⊑ a₀ a₁
 
@@ -321,9 +320,7 @@ APIDriftSound (EndpointDriftWitness {a₀} {a₁} {r} {m} {e₀} {e₁} lkOld lk
 
 ---
 
-### 1.4. Main Result
-
-Drift witnesses refute refinement. This establishes that incompatibility always has a concrete structural explanation.
+### 1.4. Main Soundness Result
 
 ```agda
 DriftSound : ∀ {a₀ a₁} → Drift a₀ a₁ → ¬ API⊑ a₀ a₁
@@ -334,7 +331,9 @@ DriftSound = APIDriftSound
 
 ## 2. Completeness
 
-Refinement failure produces a drift witness. The decision procedure returns either a proof or a witness, so completeness follows directly.
+Refinement failure produces a drift witness. 
+
+At each level, completeness follows directly from the corresponding decision procedure from `Semantics.DecidableRefinement`.
 
 ### 2.1. Schema Drift Completeness
 
@@ -386,9 +385,9 @@ DriftComplete a₀ a₁ wfA₀ wfA₁ notRef
 
 ---
 
-## 3. Drift ↔ Refinement Failure
+## 3. Drift and Refinement Failure
 
-Soundness and completeness together establish that drift and refinement failure are equivalent for well-formed APIs. Every incompatibility has exactly one structural explanation.
+For well-formed APIs, drift is equivalent to refinement failure.
 
 ```agda
 Drift-iff :

@@ -1,12 +1,16 @@
 # Drift
 
-So far we have focused on showing when one API safely refines another. Refinement gives positive evidence that a change preserves the original contract.
+Refinement gives positive evidence that a change preserves the original contract.
 
-Drift looks at the same situation from the other side. Instead of proving that evolution is safe, we isolate concrete ways in which it can fail. A drift witness identifies a specific structural guarantee that has been broken. For example, an endpoint being removed, a required field being introduced, or a response type being narrowed.
+Drift captures the complementary notion, i.e., ways in which refinement can fail. A drift witness identifies a specific structural guarantee that has been broken, such as an endpoint being removed, a required field changing, or a response becoming incompatible.
 
-The aim here is not just to say that two APIs are incompatible, but to explain why. To keep this systematic, drift follows the same layered structure as refinement: we first describe breaking changes at the level of schemas, then lift them to endpoints, and finally to entire APIs.
+As with refinement, drift is defined layer by layer:
 
-The key result of this section is that any such witness of drift rules out refinement. In other words, incompatibility in this model always has a structural explanation.
+- first for schemas,
+- then for endpoints,
+- and finally for whole APIs.
+
+These witnesses are later used to show that incompatibility always has a structural explanation in the model.
 
 ```agda
 module Semantics.Drift where
@@ -32,7 +36,9 @@ open Σ using (fst ; snd)
 
 ## 1. Schema Drift
 
-Schema drift captures breaking changes inside schemas. Each constructor corresponds to a structural obligation required by schema refinement that can fail.
+Schema drift captures breaking changes at the schema level.
+
+Each constructor corresponds to a structural obligation required by schema refinement that may fail.
 
 ```agda
 data SchemaDrift : Schema → Schema → Set where
@@ -86,9 +92,7 @@ data SchemaDrift : Schema → Schema → Set where
 
 ## 2. Endpoint Drift
 
-Endpoint drift captures breaking changes at the level of individual operations.
-
-Each constructor corresponds to a refinement obligation at the endpoint level that can fail.
+Endpoint drift captures breaking changes at the level of individual endpoints.
 
 ```agda
 data BodySchema : ∀ {m} → Body m → Schema → Set where
@@ -177,8 +181,7 @@ data EndpointDrift : Endpoint → Endpoint → Set where
 
 ## 3. API Drift
 
-API drift captures breaking changes at the level of whole
-specifications.
+API drift captures breaking changes at the level of whole APIs.
 
 ```agda
 data Drift : API → API → Set where

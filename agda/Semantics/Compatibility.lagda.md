@@ -1,10 +1,8 @@
 # Compatibility
 
-OpenAPI specifications encode structural contracts: which operations exist, which parameters are required, and which response shapes are guaranteed.
+This module packages API refinement as a notion of backward compatibility for well-formed OpenAPI specifications.
 
-Backward compatibility captures preservation of this contract under evolution. A new API version is compatible with an old one when it preserves the structural guarantees provided by the old specification.
-
-In this development, compatibility is formalised as API refinement restricted to well-formed specifications. This restriction is important because it supports deterministic lookup and, consequently, decidable checking.
+A new API version is compatible with an old one precisely when it refines it.
 
 ```agda
 module Semantics.Compatibility where
@@ -23,20 +21,20 @@ open import Semantics.DriftProperties
 
 ## 1. Compatibility Definition
 
-Compatibility restricts API refinement to well-formed specifications. Well-formedness (unique keys, proper nesting) makes decidability possible by guaranteeing deterministic lookup.
+Compatibility is API refinement restricted to well-formed APIs.
 
 ```agda
 _≈compat_ : WFAPIₛ → WFAPIₛ → Set
 (a , _) ≈compat (b , _) = API⊑ a b
 ```
 
-Thus, `(a , wfA) ≈compat (b , wfB)` means that `b` refines `a`: every component and endpoint in `a` is preserved in `b` with a compatible type change. This is the formal notion of contract preservation.
+Thus, `(a , wfA) ≈compat (b , wfB)` means that `b` refines `a`.
 
 ---
 
 ## 2. Decidable Compatibility
 
-Backward compatibility is decidable for well-formed APIs. Given two well-formed OpenAPI specifications, we can either construct a compatibility proof or return a structural witness of incompatibility.
+Compatibility is decidable for well-formed APIs.
 
 ```agda
 _≈compat?_ : (a₀ a₁ : WFAPIₛ) → Dec (a₀ ≈compat a₁)
@@ -46,20 +44,20 @@ _≈compat?_ : (a₀ a₁ : WFAPIₛ) → Dec (a₀ ≈compat a₁)
 ... | inr drift = no (DriftSound drift)
 ```
 
-Therefore API evolution verification is decidable. Compatibility is not only well-defined but also algorithmically checkable.
+The procedure either returns a proof of compatibility or a structural witness of incompatibility.
 
 ---
 
 ## 3. API Equivalence
 
-Two APIs are equivalent when compatibility holds in both directions. This is useful for bidirectional compatibility analysis and for checking whether refactorings preserve observable behaviour.
+Two APIs are equivalent when compatibility holds in both directions.
 
 ```agda
 _≈equiv_ : WFAPIₛ → WFAPIₛ → Set
 a ≈equiv b = (a ≈compat b) × (b ≈compat a)
 ```
 
-Equivalence is also decidable by checking both compatibility directions independently.
+This is also decidable by checking both directions independently.
 
 ```agda
 _≈equiv?_ : (a₀ a₁ : WFAPIₛ) → Dec (a₀ ≈equiv a₁)
