@@ -183,23 +183,29 @@ specifications.
 ```agda
 data Drift : API → API → Set where
 
-  ComponentRemoved : ∀ {a₀ a₁ k} → lookupComponent k (API.components
-      a₀) ≢ nothing → lookupComponent k (API.components a₁) ≡ nothing
-      → Drift a₀ a₁
+  ComponentRemoved : 
+    ∀ {a₀ a₁ k} 
+    → lookupComponent k (API.components a₀) ≢ nothing 
+    → lookupComponent k (API.components a₁) ≡ nothing 
+    → Drift a₀ a₁
 
-  ComponentDriftWitness : ∀ {a₀ a₁ k s₀ s₁} → lookupComponent k
-      (API.components a₀) ≡ just s₀ → lookupComponent k
-      (API.components a₁) ≡ just s₁ → SchemaDrift s₀ s₁ → Drift a₀ a₁
+  ComponentDriftWitness : 
+    ∀ {a₀ a₁ k s₀ s₁} 
+    → lookupComponent k (API.components a₀) ≡ just s₀ 
+    → lookupComponent k (API.components a₁) ≡ just s₁ 
+    → SchemaDrift s₀ s₁ 
+    → Drift a₀ a₁
 
-  EndpointRemoved : ∀ {a₀ a₁ r m} → lookupEndpoint r m (API.paths a₀)
-      ≢ nothing → lookupEndpoint r m (API.paths a₁) ≡ nothing → Drift
-      a₀ a₁
+  EndpointRemoved : 
+      ∀ {a₀ a₁ r m} 
+    → lookupEndpoint r m (API.paths a₀) ≢ nothing 
+    → lookupEndpoint r m (API.paths a₁) ≡ nothing 
+    → Drift a₀ a₁
 
-  EndpointDriftWitness : ∀ {a₀ a₁ r m e₀ e₁} → lookupEndpoint r m
-      (API.paths a₀) ≡ just e₀ → lookupEndpoint r m (API.paths a₁) ≡
-      just e₁ → EndpointDrift e₀ e₁ → Drift a₀ a₁
+  EndpointDriftWitness : 
+      ∀ {a₀ a₁ r m e₀ e₁} 
+    → lookupEndpoint r m (API.paths a₀) ≡ just e₀ 
+    → lookupEndpoint r m (API.paths a₁) ≡ just e₁ 
+    → EndpointDrift e₀ e₁ 
+    → Drift a₀ a₁
 ```
-
-At this point we have a concrete structural account of breaking change. Drift follows the same layered organisation as refinement, starting from schemas and lifting through endpoints to whole APIs.
-
-The connection between drift and refinement is established in `Semantics.DriftProperties`, which proves that drift witnesses soundly refute refinement and that refinement failure always produces a drift witness.

@@ -90,32 +90,6 @@ def generate_compat_runner(
     runner_path.write_text(compat_runner_code, encoding="utf-8")
     return runner_path
 
-
-def run_agda_typecheck(agda_dir: Path, module_path: Path) -> tuple[bool, str]:
-    module_rel = module_path.relative_to(agda_dir)
-
-    cmd = [
-        "agda",
-        str(module_rel).replace("/", "\\"),
-        "--transliterate",
-    ]
-
-    result = subprocess.run(
-        cmd,
-        cwd=agda_dir,
-        text=True,
-        capture_output=True,
-    )
-
-    if result.returncode == 0:
-        return True, ""
-
-    stderr = (result.stderr or "").strip()
-    stdout = (result.stdout or "").strip()
-    details = stderr if stderr else stdout
-    return False, details
-
-
 def run_agda_compile_and_execute(agda_dir: Path, module_path: Path) -> tuple[bool, str, str]:
     module_rel = module_path.relative_to(agda_dir)
 
