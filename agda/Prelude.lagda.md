@@ -1,6 +1,6 @@
 # Prelude
 
-Minimal core definitions used across the project. Provides basic data types and simple logic without needing any external dependencies.
+Core definitions shared across the project.
 
 ```agda
 module Prelude where
@@ -53,9 +53,6 @@ _≟_ x y with primStringEquality x y
   where postulate primTrustMe : x ≡ y
 ... | false = no primTrustMe
   where postulate primTrustMe : x ≢ y
-  
-true≢false : true ≡ false → ⊥
-true≢false ()
 
 false≢true : false ≡ true → ⊥
 false≢true ()
@@ -140,7 +137,7 @@ pair-≡ refl refl = refl
 ⊥-elim ()
 ```
 
-## List predicates / set-like reasoning on lists
+## List predicates
 
 ```agda
 data All {A : Set} (P : A → Set) : List A → Set where
@@ -166,6 +163,11 @@ data _∉_ {A : Set} (x : A) : List A → Set where
 ... | yes refl = ⊥-elim (¬∈ here)
 ... | no  x≢y  = notin::_ x≢y (∉-intro (λ x∈ys → ¬∈ (there x∈ys)))
 
+∉-elim : ∀ {A : Set} {x : A} {xs : List A} → x ∉ xs → x ∈ xs → ⊥
+∉-elim notin[] ()
+∉-elim (notin::_ x≢y x∉ys) here        = x≢y refl
+∉-elim (notin::_ _   x∉ys) (there x∈)  = ∉-elim x∉ys x∈
+
 ∉-intro-gen : ∀ {A} {x : A} {xs : List A} → ((a b : A) → Dec (a ≡ b)) → ¬ (x ∈ xs) → x ∉ xs
 ∉-intro-gen {xs = []} _ _ = notin[]
 ∉-intro-gen {x = x} {xs = y :: ys} eq ¬∈
@@ -173,16 +175,10 @@ data _∉_ {A : Set} (x : A) : List A → Set where
 ... | yes refl = ⊥-elim (¬∈ here)
 ... | no  x≢y  = notin::_ x≢y (∉-intro-gen eq (λ x∈ys → ¬∈ (there x∈ys)))
 
-∉-elim : ∀ {A : Set} {x : A} {xs : List A} → x ∉ xs → x ∈ xs → ⊥
-∉-elim notin[] ()
-∉-elim (notin::_ x≢y x∉ys) here        = x≢y refl
-∉-elim (notin::_ _   x∉ys) (there x∈)  = ∉-elim x∉ys x∈
-
 data Unique {A : Set} : List A → Set where
   uniq[]  : Unique []
   uniq::_ : ∀ {x xs} → x ∉ xs → Unique xs → Unique (x :: xs)
 
--- If every element of a list satisfies P, then any specific member satisfies P.
 All-∈ :
   ∀ {A : Set} {P : A → Set} {x : A} {xs : List A}
   → All P xs
@@ -261,7 +257,7 @@ _⊆?_ (x :: xs) ys
 ... | (k , (k∈ , k∉)) = k , (there k∈ , k∉)
 ```
 
-## Association-list utils
+## Association lists
 
 ```agda
 keys : ∀ {A : Set} → List (String × A) → List String

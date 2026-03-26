@@ -1,6 +1,6 @@
 # Example Todo API
 
-In this module we provide an example of a direct translation for a minimal OpenAPI 3.1 Todo API document into our DSL's syntax (defined in [`Syntax.lagda.md`](./Syntax.lagda.md)).
+In this module we provide an example representation for a minimal OpenAPI 3.1 Todo API spec into our DSL's syntax (defined in [`Syntax.lagda.md`](./Syntax.lagda.md)).
 
 ```agda
 module Syntax.ExampleTodoAPI where

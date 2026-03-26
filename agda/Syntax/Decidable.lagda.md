@@ -1,12 +1,8 @@
 # Decidable Equality for Syntax
 
-Many refinement relations in the semantic layer rely on aligning syntactic
-objects via lookup. This requires decidable equality on key syntactic types
-such as `Method`, `Status`, and `Path`.
-
-This module collects those equality procedures in one place. It provides the
-computational infrastructure needed by refinement definitions, while keeping
-semantic modules focused solely on reasoning rather than comparison.
+Refinement relations in the semantic layer align syntactic objects via lookup,
+which requires decidable equality on `Method`, `Status`, `Path`, and related types.
+These procedures are collected here so that semantic modules can stay focused on reasoning.
 
 ```agda
 module Syntax.Decidable where
