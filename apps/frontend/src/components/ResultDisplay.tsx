@@ -10,10 +10,11 @@ function classifyTag(tag: string | null): string {
   if (!tag) return "Unknown";
   if (tag === "COMPAT_OK") return "Compatible";
   if (tag.startsWith("TRANSLATION_ERR")) return "Input Error";
-  if (tag.startsWith("WF_ERR")) return "Well-Formedness Error";
+  if (tag.startsWith("WF_ERR")) return "Input Error";
+  if (tag.startsWith("WF_CHECK_ERROR")) return "Input Error";
   if (tag.startsWith("COMPAT_ERR")) return "Compatibility Drift";
   if (tag.startsWith("BACKEND_ERROR")) return "Internal Error";
-  return "Error";
+  return "Input Error";
 }
 
 function describeTag(tag: string | null): string {
@@ -78,6 +79,28 @@ function describeTag(tag: string | null): string {
     case "COMPAT_ERR:COMPONENT_SCHEMA_ARRAY_ITEM_DRIFT":
       return "A component schema's array item type changed.";
 
+    case "TRANSLATION_ERR:SCHEMA_NOT_OBJECT":
+      return "A schema field has no value; it must be a schema object (e.g. { type: string }).";
+    case "TRANSLATION_ERR:SCHEMA_UNKNOWN_FIELD":
+      return "A schema uses a keyword outside the supported subset.";
+    case "TRANSLATION_ERR:SCHEMA_UNEXPECTED_FIELD":
+      return "A schema uses a field that is incompatible with its declared type.";
+    case "TRANSLATION_ERR:SCHEMA_MISSING_TYPE":
+      return "A schema is missing a type field.";
+    case "TRANSLATION_ERR:SCHEMA_UNSUPPORTED_TYPE":
+      return "A schema uses a base type not supported by this checker.";
+    case "TRANSLATION_ERR:REF_UNSUPPORTED_FORMAT":
+      return "A $ref uses an unsupported format (only local #/components/schemas/ refs are allowed).";
+    case "TRANSLATION_ERR:REF_SCHEMA_NOT_FOUND":
+      return "A $ref points to a component that does not exist in the specification.";
+    case "TRANSLATION_ERR:OBJECT_PROPERTIES_NOT_OBJECT":
+      return "An object schema's properties field must itself be an object.";
+    case "TRANSLATION_ERR:OBJECT_REQUIRED_NOT_LIST":
+      return "An object schema's required field must be a list.";
+    case "TRANSLATION_ERR:ARRAY_MISSING_ITEMS":
+      return "An array schema is missing its items field.";
+    case "TRANSLATION_ERR:PATH_INVALID_FORMAT":
+      return "A path string has an invalid format.";
     case "TRANSLATION_ERR:PATH_PARAMETER_NOT_REQUIRED":
       return "A path parameter must be marked required: true.";
     case "TRANSLATION_ERR:PATH_LEVEL_PARAMETERS_UNSUPPORTED":
@@ -86,12 +109,24 @@ function describeTag(tag: string | null): string {
       return "The endpoint uses an HTTP method not supported by this checker.";
     case "TRANSLATION_ERR:PARAMETER_UNSUPPORTED_LOCATION":
       return "A parameter uses an unsupported location (only path and query are supported).";
+    case "TRANSLATION_ERR:PARAMETER_MISSING_SCHEMA":
+      return "A parameter is missing its schema field.";
+    case "TRANSLATION_ERR:PARAMETER_SCHEMA_MISSING_TYPE":
+      return "A parameter's schema is missing a type field.";
     case "TRANSLATION_ERR:PARAMETER_NON_PRIMITIVE":
-      return "A parameter must have a primitive schema type.";
+      return "A parameter's type must be a primitive (string, integer, boolean, or number).";
     case "TRANSLATION_ERR:STATUS_UNSUPPORTED":
       return "A response uses a status code not supported by this checker.";
+    case "TRANSLATION_ERR:RESPONSE_MISSING_JSON_CONTENT":
+      return "A response is missing application/json content.";
+    case "TRANSLATION_ERR:RESPONSE_MISSING_SCHEMA":
+      return "A response entry is missing its schema field.";
     case "TRANSLATION_ERR:REQUEST_BODY_MISSING":
       return "An endpoint is missing a required request body.";
+    case "TRANSLATION_ERR:REQUEST_BODY_MISSING_JSON_CONTENT":
+      return "A request body is missing application/json content.";
+    case "TRANSLATION_ERR:REQUEST_BODY_MISSING_SCHEMA":
+      return "A request body is missing its schema field.";
     case "TRANSLATION_ERR:BODY_UNSUPPORTED_METHOD":
       return "An endpoint uses an unsupported method and request body combination.";
 
@@ -104,13 +139,26 @@ function describeTag(tag: string | null): string {
     case "WF_ERR:API_ENDPOINT_DUPLICATE_STATUSES":
       return "An endpoint declares the same response status code more than once.";
     case "WF_ERR:API_ENDPOINT_PATH_ILL_FORMED":
-      return "An endpoint has an ill-formed path.";
+      return "A path parameter declared on the endpoint does not match the route placeholders.";
+    case "WF_ERR:API_ENDPOINT_PATH_PARAM_NOT_REQUIRED":
+      return "A path parameter must be marked required: true.";
+    case "WF_ERR:API_ENDPOINT_PARAM_NON_PRIMITIVE":
+      return "A parameter's schema type must be a primitive (string, integer, boolean, or number).";
+    case "WF_ERR:API_ENDPOINT_PARAMETER_ILL_FORMED":
+      return "An endpoint declares a parameter that violates specification rules.";
+
+    case "WF_CHECK_ERROR:PARSE_OR_TRANSLATION_FAILED":
+      return "The input could not be parsed as valid OpenAPI YAML.";
+    case "WF_CHECK_ERROR:UNEXPECTED_RUNNER_OUTPUT":
+      return "The checker produced unexpected output — this may indicate a backend bug.";
 
     default:
       if (tag.startsWith("TRANSLATION_ERR"))
         return "The YAML could not be translated into the supported OpenAPI subset.";
       if (tag.startsWith("WF_ERR"))
         return "The specification failed formal well-formedness checks.";
+      if (tag.startsWith("WF_CHECK_ERROR"))
+        return "The input could not be processed — check that it is valid OpenAPI YAML.";
       if (tag.startsWith("COMPAT_ERR"))
         return "The APIs are not compatible under the formal refinement relation.";
       if (tag.startsWith("BACKEND_ERROR") || tag.startsWith("COMPAT_CHECK_ERROR"))
@@ -123,6 +171,7 @@ function describeTag(tag: string | null): string {
 
 function labelContextKey(key: string): string {
   const keyMap: Record<string, string> = {
+    spec: "Spec",
     component: "Component",
     endpoint: "Endpoint",
     method: "Method",
@@ -132,6 +181,8 @@ function labelContextKey(key: string): string {
     property: "Property",
     response: "Response",
     status: "Status",
+    orphan_parameter: "Orphan Parameter",
+    placeholder: "Missing Placeholder",
   };
 
   return keyMap[key] ?? key;
@@ -139,11 +190,14 @@ function labelContextKey(key: string): string {
 
 function priorityForKey(key: string): number {
   const priorities: Record<string, number> = {
+    spec: -1,
     path: 0,
     method: 1,
     component: 2,
     property: 3,
     parameter: 4,
+    orphan_parameter: 4,
+    placeholder: 4,
     old_type: 5,
     new_type: 6,
     response_status: 7,
@@ -164,7 +218,7 @@ const ResultDisplay = ({ result }: ResultDisplayProps) => {
   const allContextEntries = Object.entries(result.context ?? {});
   const contextEntries = [...allContextEntries].sort(([leftKey], [rightKey]) => priorityForKey(leftKey) - priorityForKey(rightKey));
   const diagnosis = describeTag(result.tag);
-  const keyFacts = contextEntries.filter(([key]) => ["path", "method", "component", "property", "parameter", "old_type", "new_type"].includes(key));
+  const keyFacts = contextEntries.filter(([key]) => ["spec", "path", "method", "component", "property", "parameter", "orphan_parameter", "placeholder", "old_type", "new_type"].includes(key));
   const summaryText = [
     `Diagnosis: ${diagnosis}`,
     `Tag: ${result.tag ?? "(none)"}`,
