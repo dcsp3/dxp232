@@ -68,5 +68,5 @@ agda Everything.agda
 ├── drift-example/  # Early API drift example
 ├── parser/         # Translation pipeline
 ├── specs/          # Example + test OpenAPI specifications
-└── report.pdf      # Project report (tba)
+└── report.pdf      # Project report
 ```
