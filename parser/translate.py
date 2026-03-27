@@ -21,6 +21,12 @@ def _fail(code: str, detail: str, **context: str) -> None:
     raise TranslationError(code, detail, context)
 
 
+def _items(d: dict):
+    if hasattr(d, "items_all"):
+        return d.items_all()
+    return d.items()
+
+
 def _ensure_only_allowed_schema_fields(raw: dict, allowed: set[str], schema_kind: str) -> None:
     for field_name in raw:
         if field_name not in allowed:
@@ -78,7 +84,7 @@ def translate_schema(raw: dict, components: dict) -> Schema:
         raw_props = raw.get("properties", {})
         if not isinstance(raw_props, dict):
             _fail("OBJECT_PROPERTIES_NOT_OBJECT", "'properties' must be an object.")
-        for prop_name, prop_schema in raw_props.items():
+        for prop_name, prop_schema in _items(raw_props):
             translated_prop = translate_schema(prop_schema, components)
             properties.append((prop_name, translated_prop))
 
@@ -136,7 +142,7 @@ def translate_schema(raw: dict, components: dict) -> Schema:
         raw_props = raw.get("properties", {})
         if not isinstance(raw_props, dict):
             _fail("OBJECT_PROPERTIES_NOT_OBJECT", "'properties' must be an object.")
-        for prop_name, prop_schema in raw_props.items():
+        for prop_name, prop_schema in _items(raw_props):
             translated_prop = translate_schema(prop_schema, components)
             properties.append((prop_name, translated_prop))
 
@@ -246,9 +252,11 @@ def translate_parameter(raw_param: dict) -> Parameter:
     if base_type not in {"integer", "string", "boolean", "number"}:
         _fail("PARAMETER_NON_PRIMITIVE", f"Parameter '{name}' must have primitive type.", parameter=name or "", type=str(base_type))
 
+    # let agda handle this
+
     # path params must be required
-    if location == "path" and not required:
-        _fail("PATH_PARAMETER_NOT_REQUIRED", f"Path parameter '{name}' must be required.", parameter=name or "")
+    # if location == "path" and not required:
+    #     _fail("PATH_PARAMETER_NOT_REQUIRED", f"Path parameter '{name}' must be required.", parameter=name or "")
 
     return Parameter(
         name=name,
@@ -260,7 +268,7 @@ def translate_parameter(raw_param: dict) -> Parameter:
 def translate_responses(raw_responses: dict, components: dict) -> list[Response]:
     translated = []
 
-    for status_code, response_obj in raw_responses.items():
+    for status_code, response_obj in _items(raw_responses):
 
         if status_code not in STATUS_MAP:
             _fail("STATUS_UNSUPPORTED", f"Unsupported status code: {status_code}", status=status_code)
@@ -298,23 +306,30 @@ def translate_api(spec: dict) -> API:
 
     translated_components = [
         (name, translate_schema(raw_schema, components_dict))
-        for name, raw_schema in components_dict.items()
+        for name, raw_schema in _items(components_dict)
     ]
 
     translated_paths = []
     raw_paths = spec.get("paths", {})
 
-    for path_str, path_item in raw_paths.items():
-
-        if "parameters" in path_item:
-            _fail("PATH_LEVEL_PARAMETERS_UNSUPPORTED", "Path-level parameters are not supported.", path=path_str)
+    for path_str, path_item in _items(raw_paths):
 
         translated_path = translate_path(path_str)
+        path_level_params = path_item.get("parameters", []) if isinstance(path_item, dict) else []
+        if path_level_params:
+            _fail(
+                "PATH_LEVEL_PARAMETERS_UNSUPPORTED",
+                "Path-level parameters are not supported.",
+                path=path_str,
+            )
 
-        for method_str, operation in path_item.items():
+        for method_str, operation in _items(path_item):
+            if method_str.lower() not in ALLOWED_METHODS:
+                continue
+
             method = translate_method(method_str)
 
-            raw_parameters = operation.get("parameters", [])
+            raw_parameters = path_level_params + operation.get("parameters", [])
             translated_parameters = [
                 translate_parameter(p) for p in raw_parameters
             ]
