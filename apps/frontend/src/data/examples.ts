@@ -905,7 +905,7 @@ const inputErrorPathParamNotRequired: ExamplePair = {
     "OpenAPI mandates that path parameters are always required: true. The old spec sets required: false on id, so the checker rejects it before doing any comparison.",
   change: "/users/{id}: path param id has required: false",
   category: "input-error",
-  expectedTag: "TRANSLATION_ERR:PATH_PARAMETER_NOT_REQUIRED",
+  expectedTag: "WF_ERR:API_ENDPOINT_PATH_PARAM_NOT_REQUIRED",
   old: `openapi: 3.1.0
 paths:
   /users/{id}:
@@ -1027,24 +1027,24 @@ components:
         - count`,
 };
 
-const inputErrorPathLevelParams: ExamplePair = {
-  id: "input-path-level-params",
-  title: "Path-level parameters unsupported",
+const inputErrorOrphanPathParameter: ExamplePair = {
+  id: "input-orphan-path-parameter",
+  title: "Orphan path parameter",
   description:
-    "Parameters defined at the path level (shared across all methods) are not in the supported subset. The checker rejects the spec before running any comparison.",
-  change: "Old API: /users has parameters defined at path level, not operation level",
+    "GET /users declares a path parameter 'id', but the route '/users' does not contain an '{id}' placeholder. The specification fails the well-formedness check.",
+  change: "GET /users: orphaned path parameter 'id'",
   category: "input-error",
-  expectedTag: "TRANSLATION_ERR:PATH_LEVEL_PARAMETERS_UNSUPPORTED",
+  expectedTag: "WF_ERR:API_ENDPOINT_PATH_ILL_FORMED",
   old: `openapi: 3.1.0
 paths:
   /users:
-    parameters:
-      - name: api-version
-        in: query
-        required: false
-        schema:
-          type: string
     get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
       responses:
         "200":
           description: ok
@@ -1158,7 +1158,7 @@ export const EXAMPLES: ExamplePair[] = [
   breakingComponentRemoved,
   inputErrorPathParamNotRequired,
   inputErrorDuplicateParameters,
-  inputErrorPathLevelParams,
+  inputErrorOrphanPathParameter,
   inputErrorDuplicateStatuses,
 ];
 

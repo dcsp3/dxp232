@@ -22,8 +22,8 @@ TESTS = [
     # --- translation-layer rejections (exit 2): unrepresentable inputs ---
     (
         "wf_bad_path_param_not_required.yaml",
-        "TRANSLATION_ERR:PATH_PARAMETER_NOT_REQUIRED",
-        2,
+        "WF_ERR:API_ENDPOINT_PATH_PARAM_NOT_REQUIRED",
+        1,
         "path parameter not marked required:true",
     ),
     (
@@ -168,18 +168,6 @@ TESTS = [
     ),
 ]
 
-# These WF tags are part of the Agda model but are not reliably triggerable from
-# standard OpenAPI YAML parsing in this pipeline. YAML object keys are unique, so
-# duplicate map keys are typically overwritten before translation can observe them.
-UNREACHABLE_VIA_YAML = [
-    "WF_ERR:API_DUPLICATE_COMPONENTS",
-    "WF_ERR:API_DUPLICATE_ENDPOINTS",
-    "WF_ERR:API_ENDPOINT_DUPLICATE_STATUSES",
-    "WF_ERR:API_COMPONENT_SCHEMA_OBJECT_DUPLICATE_PROPERTIES",
-    "WF_ERR:API_ENDPOINT_BODY_SCHEMA_OBJECT_DUPLICATE_PROPERTIES",
-    "WF_ERR:API_ENDPOINT_RESPONSE_SCHEMA_OBJECT_DUPLICATE_PROPERTIES",
-]
-
 
 def run_test(filename: str, expected_tag: str, expected_exit: int, description: str) -> bool:
     spec_path = WF_TESTS_DIR / filename
@@ -217,9 +205,6 @@ def main() -> None:
     passed = sum(results)
     failed = len(results) - passed
     print(f"Results: {passed} passed, {failed} failed")
-    print("\nCoverage note: the following tags are modeled but unreachable via normal YAML key semantics:")
-    for tag in UNREACHABLE_VIA_YAML:
-        print(f"  - {tag}")
 
     if failed:
         sys.exit(1)

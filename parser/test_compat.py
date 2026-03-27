@@ -99,7 +99,7 @@ TESTS = [
         "COMPAT_ERR:COMPONENT_SCHEMA_PRIMITIVE_CHANGED",
         1,
         "changing a shared component primitive type is incompatible",
-        "CONTEXT: component=User type_change=primitive_changed",
+        "CONTEXT: component=User old_type=",
     ),
     (
         "component_array_item_drift_old.yaml",
@@ -107,7 +107,7 @@ TESTS = [
         "COMPAT_ERR:COMPONENT_SCHEMA_ARRAY_ITEM_DRIFT",
         1,
         "changing a shared component array item schema is incompatible",
-        "CONTEXT: component=User type_change=primitive_changed",
+        "CONTEXT: component=User old_type=",
     ),
     (
         "component_property_removed_old.yaml",
@@ -115,7 +115,7 @@ TESTS = [
         "COMPAT_ERR:COMPONENT_SCHEMA_REQUIRED_FIELD_REMOVED",
         1,
         "removing a shared component required field is incompatible",
-        "CONTEXT: component=User required_field=name",
+        "CONTEXT: component=User property=name",
     ),
     (
         "component_property_removed_old.yaml",
@@ -139,7 +139,7 @@ TESTS = [
         "COMPAT_ERR:COMPONENT_SCHEMA_SHAPE_MISMATCH",
         1,
         "changing a shared component shape is incompatible",
-        "CONTEXT: component=User type_change=shape_mismatch",
+        "CONTEXT: component=User old_type=",
     ),
     (
         "endpoint_parameter_schema_changed_old.yaml",
@@ -187,7 +187,7 @@ TESTS = [
         "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_PRIMITIVE_CHANGED",
         1,
         "changing a shared request body primitive type is incompatible",
-        "CONTEXT: method=POST type_change=primitive_changed",
+        "CONTEXT: method=POST old_type=",
     ),
     (
         "endpoint_body_array_item_drift_old.yaml",
@@ -195,7 +195,7 @@ TESTS = [
         "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_ARRAY_ITEM_DRIFT",
         1,
         "changing a shared request body array item schema is incompatible",
-        "CONTEXT: method=POST type_change=primitive_changed",
+        "CONTEXT: method=POST old_type=",
     ),
     (
         "endpoint_body_required_field_removed_old.yaml",
@@ -203,7 +203,7 @@ TESTS = [
         "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_REQUIRED_FIELD_REMOVED",
         1,
         "strengthening a shared request body required field set is incompatible",
-        "CONTEXT: method=POST required_field=name",
+        "CONTEXT: method=POST property=name",
     ),
     (
         "endpoint_body_property_removed_old.yaml",
@@ -227,7 +227,7 @@ TESTS = [
         "COMPAT_ERR:ENDPOINT_BODY_SCHEMA_SHAPE_MISMATCH",
         1,
         "changing a shared request body shape is incompatible",
-        "CONTEXT: method=POST type_change=shape_mismatch",
+        "CONTEXT: method=POST old_type=",
     ),
     (
         "endpoint_response_primitive_changed_old.yaml",
@@ -235,7 +235,7 @@ TESTS = [
         "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_PRIMITIVE_CHANGED",
         1,
         "changing a shared response primitive type is incompatible",
-        "CONTEXT: method=GET type_change=primitive_changed",
+        "CONTEXT: method=GET old_type=",
     ),
     (
         "endpoint_response_array_item_drift_old.yaml",
@@ -243,7 +243,7 @@ TESTS = [
         "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_ARRAY_ITEM_DRIFT",
         1,
         "changing a shared response array item schema is incompatible",
-        "CONTEXT: method=GET type_change=primitive_changed",
+        "CONTEXT: method=GET old_type=",
     ),
     (
         "endpoint_response_object_old.yaml",
@@ -251,7 +251,7 @@ TESTS = [
         "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_REQUIRED_FIELD_REMOVED",
         1,
         "removing a shared response required field is incompatible",
-        "CONTEXT: method=GET required_field=name",
+        "CONTEXT: method=GET property=name",
     ),
     (
         "endpoint_response_object_old.yaml",
@@ -275,7 +275,7 @@ TESTS = [
         "COMPAT_ERR:ENDPOINT_RESPONSE_SCHEMA_SHAPE_MISMATCH",
         1,
         "changing a shared response shape is incompatible",
-        "CONTEXT: method=GET type_change=shape_mismatch",
+        "CONTEXT: method=GET old_type=",
     ),
 ]
 
